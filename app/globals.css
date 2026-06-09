@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  --color-maple: #b91c1c;
+  --color-maple-dark: #991b1b;
+  --color-ink: #0f172a;
+  --color-soft: #475569;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+body {
+  background: #ffffff;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}

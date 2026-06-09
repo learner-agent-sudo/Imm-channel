@@ -1,0 +1,54 @@
+{
+  "note": "Human-curated feed of IRCC policy changes that affect this site's rules. New candidates are flagged by scripts/policy-monitor.mjs and added here after manual verification.",
+  "updates": [
+    {
+      "date": "2025-11-04",
+      "title": "2026–2028 Immigration Levels Plan",
+      "summary": "Permanent resident admissions stabilize around 380,000 for 2026 after two years of reductions. A majority of admissions are expected to come from people already in Canada, which strengthens in-Canada routes like the Canadian Experience Class.",
+      "affects": ["All programs", "Express Entry", "Study pathway"],
+      "sourceUrl": "https://www.canada.ca/en/immigration-refugees-citizenship/news.html"
+    },
+    {
+      "date": "2025-09-01",
+      "title": "Study permit cost-of-living requirement raised to $22,895",
+      "summary": "Single study permit applicants outside Quebec must now show $22,895 CAD in available funds, plus first-year tuition and travel costs. Our study pathway cost estimates reflect the new amount.",
+      "affects": ["Study pathway"],
+      "sourceUrl": "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/study-permit/get-documents/financial-support.html"
+    },
+    {
+      "date": "2025-03-25",
+      "title": "Job offer points removed from the CRS",
+      "summary": "IRCC removed the 50/200 additional CRS points for arranged employment. A valid job offer no longer raises your Express Entry score — our calculator reflects this. A job offer can still matter for FSW eligibility and work permits.",
+      "affects": ["Express Entry", "CRS"],
+      "sourceUrl": "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/eligibility/criteria-comprehensive-ranking-system/grid.html"
+    },
+    {
+      "date": "2025-02-27",
+      "title": "2025 Express Entry categories: education added, transport removed",
+      "summary": "Category-based draws now cover French proficiency, healthcare & social services, STEM, trades, education, and agriculture & agri-food occupations. Education occupations (teachers, ECEs, instructors of persons with disabilities) were added; transport was removed.",
+      "affects": ["Express Entry", "Category-based draws"],
+      "sourceUrl": "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/submit-profile/rounds-invitations/category-based-selection.html"
+    },
+    {
+      "date": "2024-11-01",
+      "title": "PGWP language and field-of-study requirements",
+      "summary": "Post-graduation work permit applicants now need CLB 7 (university graduates) or CLB 5 (college graduates). College graduates must also have studied in a field linked to long-term shortage occupations; university degree holders are exempt from the field restriction.",
+      "affects": ["Study pathway", "PGWP"],
+      "sourceUrl": "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/work/after-graduation/eligibility.html"
+    },
+    {
+      "date": "2024-04-30",
+      "title": "Permanent residence fees increased",
+      "summary": "The Express Entry processing fee rose to $950 and the right-of-permanent-residence fee to $575 per adult. Cost estimates on this site use the new amounts.",
+      "affects": ["Fees", "Express Entry"],
+      "sourceUrl": "https://ircc.canada.ca/english/information/fees/fees.asp"
+    },
+    {
+      "date": "2024-01-22",
+      "title": "Study permit caps and provincial attestation letters",
+      "summary": "Most new study permit applicants must include a Provincial Attestation Letter (PAL) from their destination province, and IRCC caps the number of applications it accepts each year. Plan extra time for the PAL step.",
+      "affects": ["Study pathway"],
+      "sourceUrl": "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/study-permit.html"
+    }
+  ]
+}

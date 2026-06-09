@@ -1,0 +1,20 @@
+{
+  "source": "snapshot",
+  "asOf": "2025-12-15",
+  "note": "Bundled fallback used when the live IRCC rounds JSON is unreachable. Values are approximate as of the asOf date; the policy monitor and the /api/ee-draws route refresh from the official feed in production.",
+  "officialSource": "https://www.canada.ca/content/dam/ircc/documents/json/ee_rounds_123_en.json",
+  "rounds": [
+    { "drawNumber": 365, "date": "2025-12-09", "stream": "Provincial Nominee Program", "invitations": 580, "cutoff": 705 },
+    { "drawNumber": 364, "date": "2025-11-25", "stream": "Canadian Experience Class", "invitations": 4000, "cutoff": 533 },
+    { "drawNumber": 363, "date": "2025-11-12", "stream": "French language proficiency", "invitations": 2500, "cutoff": 440 },
+    { "drawNumber": 362, "date": "2025-10-28", "stream": "Canadian Experience Class", "invitations": 4500, "cutoff": 535 },
+    { "drawNumber": 361, "date": "2025-10-14", "stream": "Provincial Nominee Program", "invitations": 421, "cutoff": 696 },
+    { "drawNumber": 360, "date": "2025-10-01", "stream": "Education occupations", "invitations": 2000, "cutoff": 479 },
+    { "drawNumber": 359, "date": "2025-09-16", "stream": "Healthcare and social services occupations", "invitations": 3000, "cutoff": 475 },
+    { "drawNumber": 358, "date": "2025-09-02", "stream": "Canadian Experience Class", "invitations": 5000, "cutoff": 528 },
+    { "drawNumber": 357, "date": "2025-08-19", "stream": "French language proficiency", "invitations": 2500, "cutoff": 428 },
+    { "drawNumber": 356, "date": "2025-08-05", "stream": "Trade occupations", "invitations": 1500, "cutoff": 433 },
+    { "drawNumber": 355, "date": "2025-07-22", "stream": "STEM occupations", "invitations": 2500, "cutoff": 486 },
+    { "drawNumber": 354, "date": "2025-07-08", "stream": "Canadian Experience Class", "invitations": 3000, "cutoff": 518 }
+  ]
+}
