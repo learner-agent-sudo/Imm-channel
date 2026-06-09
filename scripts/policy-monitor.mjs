@@ -40,8 +40,15 @@ function loadState() {
   }
 }
 
+// canada.ca's bot protection can hang connections from datacenter IPs —
+// always bound feed fetches so CI jobs fail fast instead of stalling.
+const FETCH_TIMEOUT_MS = 20000;
+
 async function fetchJson(url) {
-  const res = await fetch(url, { headers: { accept: "application/json" } });
+  const res = await fetch(url, {
+    headers: { accept: "application/json" },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`${url} → HTTP ${res.status}`);
   return res.json();
 }
@@ -77,7 +84,10 @@ async function checkDraws(state, report) {
 }
 
 async function checkNews(state, report) {
-  const res = await fetch(NEWS_URL, { headers: { accept: "application/atom+xml" } });
+  const res = await fetch(NEWS_URL, {
+    headers: { accept: "application/atom+xml" },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`${NEWS_URL} → HTTP ${res.status}`);
   const xml = await res.text();
 

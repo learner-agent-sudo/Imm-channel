@@ -44,7 +44,15 @@ export async function getDraws(): Promise<DrawsData> {
   try {
     const res = await fetch(IRCC_ROUNDS_URL, {
       next: { revalidate: 21600 }, // refresh at most every 6 hours
-      headers: { accept: "application/json" },
+      headers: {
+        accept: "application/json",
+        "user-agent":
+          "Mozilla/5.0 (compatible; ImmChannel/1.0; +https://github.com/learner-agent-sudo/Imm-channel)",
+      },
+      // canada.ca's bot protection can hold connections open indefinitely
+      // from datacenter IPs; without this bound, build-time prerendering of
+      // /plan and /updates exceeds the 60s static-generation limit.
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) throw new Error(`IRCC feed returned ${res.status}`);
     const rounds = parseIrccRounds(await res.json());
@@ -55,7 +63,7 @@ export async function getDraws(): Promise<DrawsData> {
       rounds,
     };
   } catch {
-    // Network blocked or feed changed shape — fall back to the bundled snapshot.
+    // Network blocked, feed hung, or shape changed — use the bundled snapshot.
     return getSnapshotDraws();
   }
 }
