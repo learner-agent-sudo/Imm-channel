@@ -82,7 +82,9 @@ export type StreamKey =
 
 export function streamKey(name: string): StreamKey {
   const n = name.toLowerCase();
-  if (n.includes("experience")) return "cec";
+  // Must not match category draws like "Senior managers with Canadian Work
+  // Experience" — only the program itself.
+  if (n.includes("canadian experience class")) return "cec";
   if (n.includes("provincial")) return "pnp";
   if (n.includes("french")) return "french";
   if (n.includes("health")) return "healthcare";

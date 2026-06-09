@@ -2,6 +2,13 @@
   "note": "Human-curated feed of IRCC policy changes that affect this site's rules. New candidates are flagged by scripts/policy-monitor.mjs and added here after manual verification.",
   "updates": [
     {
+      "date": "2026-03-05",
+      "title": "New Express Entry category: senior managers with Canadian work experience",
+      "summary": "IRCC's official rounds feed shows draws for a new 2026 category, 'Senior managers with Canadian Work Experience' (first round: 250 invitations at a 429 cutoff on March 5, 2026). If you manage at TEER 0 level with Canadian experience, this stream may invite at far lower scores than general CEC rounds.",
+      "affects": ["Express Entry", "Category-based draws"],
+      "sourceUrl": "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/submit-profile/rounds-invitations/category-based-selection.html"
+    },
+    {
       "date": "2025-11-04",
       "title": "2026–2028 Immigration Levels Plan",
       "summary": "Permanent resident admissions stabilize around 380,000 for 2026 after two years of reductions. A majority of admissions are expected to come from people already in Canada, which strengthens in-Canada routes like the Canadian Experience Class.",

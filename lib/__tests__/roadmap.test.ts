@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildPlannerResult } from "@/lib/roadmap";
-import { getSnapshotDraws } from "@/lib/draws";
+import { getSnapshotDraws, streamKey } from "@/lib/draws";
 import type { Profile } from "@/lib/types";
 
 const draws = getSnapshotDraws();
@@ -94,6 +94,16 @@ describe("buildPlannerResult", () => {
     expect(study.projectedCrs).toBeGreaterThan(450);
     const presence = study.steps.find((s) => s.title.includes("permanent resident"))!;
     expect(presence.monthsMin).toBeLessThan(36); // pre-PR time credited
+  });
+
+  it("streamKey distinguishes CEC from look-alike category names", () => {
+    expect(streamKey("Canadian Experience Class")).toBe("cec");
+    // 2026 category draw observed in the live feed — must NOT map to CEC.
+    expect(
+      streamKey("Senior managers with Canadian Work Experience, 2026-Version 1"),
+    ).not.toBe("cec");
+    expect(streamKey("French-Language proficiency 2026-Version 2")).toBe("french");
+    expect(streamKey("Trades Occupations, 2026-Version 3")).toBe("trades");
   });
 
   it("boosters are sorted by impact and PNP (+600) is always offered", () => {
