@@ -48,6 +48,12 @@ export type OccupationCategory =
 
 export type InCanadaStatus = "outside" | "visitor" | "student" | "worker";
 
+/**
+ * Citizenship matters only where IRCC runs nationality-specific measures.
+ * "other" is the default and is never transmitted anywhere.
+ */
+export type Citizenship = "other" | "hong-kong" | "ukraine" | "afghanistan";
+
 export type FundsBand =
   | "under-10k"
   | "10k-16k"
@@ -94,6 +100,9 @@ export interface Profile {
   fundsBand: FundsBand;
   /** Open to studying in Canada as a route to PR. */
   openToStudy: boolean;
+  citizenship: Citizenship;
+  /** Recognized refugee or displaced-person status (UNHCR or similar). */
+  refugeeStatus: boolean;
 }
 
 /* ----------------------------- Results types ----------------------------- */
@@ -160,6 +169,8 @@ export interface RoadmapStep {
   monthsMin: number;
   monthsMax: number;
   officialLink?: string;
+  /** Internal route to a detailed how-to guide (e.g. /guides/study-permit). */
+  guide?: string;
 }
 
 export type PathwayStatus =
@@ -198,12 +209,25 @@ export interface DrawComparison {
   competitive: "above" | "close" | "below";
 }
 
+/**
+ * Informational card for special measures that don't produce a full plan
+ * (closed programs, pilots with shifting intakes, status-based measures).
+ */
+export interface SpecialNotice {
+  id: string;
+  title: string;
+  summary: string;
+  status: "open" | "closed" | "check";
+  link: string;
+}
+
 export interface PlannerResult {
   crs: CRSBreakdown;
   fswGridPoints: number;
   programs: ProgramEligibility[];
   pathways: PathwayPlan[];
   boosters: CRSBooster[];
+  notices: SpecialNotice[];
 }
 
 /* --------------------------- Policy data types --------------------------- */

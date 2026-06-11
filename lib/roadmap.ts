@@ -16,11 +16,12 @@ import type {
 } from "@/lib/types";
 import { calculateCRS } from "@/lib/crs";
 import { calculateFSWGrid } from "@/lib/fsw";
-import { checkAllPrograms, familySize, requiredFunds } from "@/lib/eligibility";
+import { checkAllPrograms, requiredFunds } from "@/lib/eligibility";
 import { latestByStream, type StreamKey } from "@/lib/draws";
 import { minCLB } from "@/lib/language";
+import { citizenshipSteps, eeCosts, sumSteps } from "@/lib/plan-shared";
+import { buildSpecialPrograms } from "@/lib/special-programs";
 import {
-  citizenshipRule,
   fees,
   processing,
   sources,
@@ -29,53 +30,6 @@ import {
 } from "@/lib/rules/parameters";
 
 /* ------------------------------- Helpers ------------------------------- */
-
-function sumSteps(steps: RoadmapStep[]): [number, number] {
-  return [
-    steps.reduce((s, x) => s + x.monthsMin, 0),
-    steps.reduce((s, x) => s + x.monthsMax, 0),
-  ];
-}
-
-/** Government + typical third-party costs for one Express Entry application. */
-function eeCosts(profile: Profile, includeEca: boolean): [number, number] {
-  const fam = familySize(profile);
-  const gov =
-    (fees.eePrincipalProcessing + fees.eeRightOfPermanentResidence) * fam +
-    fees.biometricsPerPerson * fam;
-  const [testMin, testMax] = thirdPartyCosts.languageTest;
-  const [medMin, medMax] = thirdPartyCosts.medicalExam;
-  const [ecaMin, ecaMax] = includeEca ? thirdPartyCosts.eca : [0, 0];
-  return [
-    gov + testMin * fam + medMin * fam + ecaMin,
-    gov + testMax * fam + medMax * fam + ecaMax,
-  ];
-}
-
-function citizenshipSteps(prePRYearsInCanada: number): RoadmapStep[] {
-  // Pre-PR days count half, up to 365 credited days (≈ shaves a year off).
-  const credit = Math.min(12, Math.round(prePRYearsInCanada * 6));
-  const presenceMonths = 36 - credit;
-  return [
-    {
-      title: "Live in Canada as a permanent resident",
-      detail:
-        credit > 0
-          ? `You need ${citizenshipRule.daysRequired} days (36 months) of physical presence in the 5 years before applying. Your time in Canada before PR counts at half-credit (max 1 year), so roughly ${presenceMonths} more months.`
-          : `You need ${citizenshipRule.daysRequired} days (36 months) of physical presence in the 5 years before applying.`,
-      monthsMin: presenceMonths,
-      monthsMax: presenceMonths,
-      officialLink: sources.citizenship.url,
-    },
-    {
-      title: "Apply for citizenship, take the test and oath",
-      detail: `CLB ${citizenshipRule.languageCLB} language proof and a citizenship test for ages 18–54. Fee: $${fees.citizenshipAdult} per adult.`,
-      monthsMin: processing.citizenshipGrant[0],
-      monthsMax: processing.citizenshipGrant[1],
-      officialLink: sources.citizenship.url,
-    },
-  ];
-}
 
 function compareToDraws(
   crs: number,
@@ -250,6 +204,7 @@ function expressEntryPathway(
       monthsMin: 0,
       monthsMax: 1,
       officialLink: sources.drawRounds.url,
+      guide: "/guides/express-entry",
     },
     {
       title: "Receive an invitation to apply (ITA)",
@@ -402,6 +357,7 @@ function studyPathway(profile: Profile, draws: DrawsData): PathwayPlan {
       monthsMin: 3,
       monthsMax: 6,
       officialLink: sources.studyPermit.url,
+      guide: "/guides/study-permit",
     },
     {
       title: "Apply for a study permit",
@@ -409,6 +365,7 @@ function studyPathway(profile: Profile, draws: DrawsData): PathwayPlan {
       monthsMin: processing.studyPermit[0],
       monthsMax: processing.studyPermit[1],
       officialLink: sources.studyFunds.url,
+      guide: "/guides/study-permit",
     },
     {
       title: "Study in Canada",
@@ -541,8 +498,13 @@ export function buildPlannerResult(profile: Profile, draws: DrawsData): PlannerR
   const crsBreakdown = calculateCRS(profile);
   const crs = crsBreakdown.total;
   const programs = checkAllPrograms(profile);
+  const special = buildSpecialPrograms(profile);
 
-  const pathways: PathwayPlan[] = [];
+  // Special measures (e.g. the Hong Kong streams) skip the points system
+  // entirely, so they lead the ranking when the profile matches one.
+  const pathways: PathwayPlan[] = [...special.pathways];
+  const hkStudyCovered = pathways.some((p) => p.id === "hk-stream-a");
+
   const ee = expressEntryPathway(profile, crs, draws);
   if (ee) pathways.push(ee);
 
@@ -550,10 +512,7 @@ export function buildPlannerResult(profile: Profile, draws: DrawsData): PlannerR
   if (!eeReady) {
     pathways.push(pnpPathway(profile, crs));
     if (profile.hasJobOffer) pathways.push(workPermitPathway(profile));
-    if (profile.openToStudy) pathways.push(studyPathway(profile, draws));
-  } else {
-    // Still show study as an informational alternative for students.
-    if (profile.openToStudy && !ee) pathways.push(studyPathway(profile, draws));
+    if (profile.openToStudy && !hkStudyCovered) pathways.push(studyPathway(profile, draws));
   }
 
   // If nothing is on the board (rare), always offer the long-term routes.
@@ -569,6 +528,7 @@ export function buildPlannerResult(profile: Profile, draws: DrawsData): PlannerR
     programs,
     pathways,
     boosters: computeBoosters(profile, crs),
+    notices: special.notices,
   };
 }
 

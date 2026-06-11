@@ -27,6 +27,8 @@ const fswCandidate: Profile = {
   inCanadaStatus: "outside",
   fundsBand: "16k-30k",
   openToStudy: true,
+  citizenship: "other",
+  refugeeStatus: false,
 };
 
 describe("buildPlannerResult", () => {

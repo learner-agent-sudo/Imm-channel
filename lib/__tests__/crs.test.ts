@@ -27,6 +27,8 @@ const base: Profile = {
   inCanadaStatus: "outside",
   fundsBand: "16k-30k",
   openToStudy: false,
+  citizenship: "other",
+  refugeeStatus: false,
 };
 
 describe("calculateCRS — hand-verified golden profiles", () => {

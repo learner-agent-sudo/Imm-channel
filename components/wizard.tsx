@@ -3,11 +3,12 @@
 /**
  * Multi-step anonymous questionnaire. All state lives in this component;
  * nothing is transmitted anywhere — the profile is handed to the planner
- * in-memory on completion.
+ * in-memory on completion. Every label comes from the i18n dictionaries.
  */
 
 import { useState } from "react";
 import type {
+  Citizenship,
   CLBScores,
   EducationLevel,
   FundsBand,
@@ -15,7 +16,9 @@ import type {
   OccupationCategory,
   Profile,
 } from "@/lib/types";
-import { celpipToCLB, clbSelfEstimateOptions, ieltsToCLB, minCLB, pteToCLB } from "@/lib/language";
+import { celpipToCLB, ieltsToCLB, minCLB, pteToCLB } from "@/lib/language";
+import { useT } from "@/components/locale-provider";
+import type { DictKey } from "@/lib/i18n";
 
 /* ------------------------------ Form model ------------------------------ */
 
@@ -48,6 +51,8 @@ interface FormState {
   siblingInCanada: boolean;
   fundsBand: FundsBand;
   openToStudy: boolean;
+  citizenship: Citizenship;
+  refugeeStatus: boolean;
 }
 
 const initialForm: FormState = {
@@ -73,41 +78,45 @@ const initialForm: FormState = {
   siblingInCanada: false,
   fundsBand: "16k-30k",
   openToStudy: true,
+  citizenship: "other",
+  refugeeStatus: false,
 };
 
-const EDUCATION_OPTIONS: { value: EducationLevel; label: string }[] = [
-  { value: "less-than-secondary", label: "Below high school" },
-  { value: "secondary", label: "High school diploma" },
-  { value: "one-year-post-secondary", label: "1-year post-secondary certificate" },
-  { value: "two-year-post-secondary", label: "2-year diploma" },
-  { value: "bachelors", label: "Bachelor's degree (3+ year credential)" },
-  { value: "two-or-more-credentials", label: "Two or more credentials (one 3+ years)" },
-  { value: "masters-or-professional", label: "Master's or professional degree (MD, JD…)" },
-  { value: "doctoral", label: "Doctorate (PhD)" },
+const EDUCATION_KEYS: { value: EducationLevel; key: DictKey }[] = [
+  { value: "less-than-secondary", key: "edu.none" },
+  { value: "secondary", key: "edu.secondary" },
+  { value: "one-year-post-secondary", key: "edu.oneYear" },
+  { value: "two-year-post-secondary", key: "edu.twoYear" },
+  { value: "bachelors", key: "edu.bachelors" },
+  { value: "two-or-more-credentials", key: "edu.twoPlus" },
+  { value: "masters-or-professional", key: "edu.masters" },
+  { value: "doctoral", key: "edu.phd" },
 ];
 
-const TEER_OPTIONS = [
-  { value: "0", label: "TEER 0 — management (e.g. engineering or restaurant manager)" },
-  { value: "1", label: "TEER 1 — degree-level professional (software engineer, nurse, accountant)" },
-  { value: "2", label: "TEER 2 — college diploma / supervisor / skilled trade (electrician, technician)" },
-  { value: "3", label: "TEER 3 — shorter college or apprenticeship (baker, dental assistant)" },
-  { value: "4", label: "TEER 4 — high-school level (admin clerk, home support worker)" },
-  { value: "5", label: "TEER 5 — short-term demonstration (cleaner, labourer, courier)" },
-  { value: "none", label: "No paid work experience yet" },
+const TEER_KEYS: { value: string; key: DictKey }[] = [
+  { value: "0", key: "teer.0" },
+  { value: "1", key: "teer.1" },
+  { value: "2", key: "teer.2" },
+  { value: "3", key: "teer.3" },
+  { value: "4", key: "teer.4" },
+  { value: "5", key: "teer.5" },
+  { value: "none", key: "teer.none" },
 ];
 
-const FUNDS_OPTIONS: { value: FundsBand; label: string }[] = [
-  { value: "under-10k", label: "Under $10,000 CAD" },
-  { value: "10k-16k", label: "$10,000 – $16,000 CAD" },
-  { value: "16k-30k", label: "$16,000 – $30,000 CAD" },
-  { value: "30k-60k", label: "$30,000 – $60,000 CAD" },
-  { value: "over-60k", label: "Over $60,000 CAD" },
+const FUNDS_KEYS: { value: FundsBand; key: DictKey }[] = [
+  { value: "under-10k", key: "funds.1" },
+  { value: "10k-16k", key: "funds.2" },
+  { value: "16k-30k", key: "funds.3" },
+  { value: "30k-60k", key: "funds.4" },
+  { value: "over-60k", key: "funds.5" },
 ];
+
+const CLB_LEVELS = [4, 5, 6, 7, 8, 9, 10] as const;
 
 const SCORE_HINTS: Record<Exclude<EnglishTest, "self-estimate" | "none">, string> = {
-  "ielts-general": "IELTS General Training band scores, e.g. 6.5",
-  "celpip-general": "CELPIP-General levels 1–12",
-  "pte-core": "PTE Core scores 10–90",
+  "ielts-general": "IELTS 0–9",
+  "celpip-general": "CELPIP 1–12",
+  "pte-core": "PTE 10–90",
 };
 
 /* ----------------------------- Small helpers ----------------------------- */
@@ -184,6 +193,8 @@ export function toProfile(form: FormState): Profile {
     inCanadaStatus: form.inCanadaStatus,
     fundsBand: form.fundsBand,
     openToStudy: form.openToStudy,
+    citizenship: form.citizenship,
+    refugeeStatus: form.refugeeStatus,
   };
 }
 
@@ -239,9 +250,24 @@ function Toggle({
 
 /* -------------------------------- Wizard -------------------------------- */
 
-const STEP_TITLES = ["About you", "Education", "Language", "Work", "Your situation"];
+const STEP_KEYS: DictKey[] = [
+  "wiz.step.about",
+  "wiz.step.education",
+  "wiz.step.language",
+  "wiz.step.work",
+  "wiz.step.situation",
+];
+
+const ABILITIES = ["listening", "reading", "writing", "speaking"] as const;
+const ABILITY_KEYS: Record<(typeof ABILITIES)[number], DictKey> = {
+  listening: "ability.listening",
+  reading: "ability.reading",
+  writing: "ability.writing",
+  speaking: "ability.speaking",
+};
 
 export default function Wizard({ onComplete }: { onComplete: (p: Profile) => void }) {
+  const { t } = useT();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>(initialForm);
   const [error, setError] = useState<string | null>(null);
@@ -252,18 +278,14 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
   function validate(): string | null {
     if (step === 0) {
       const age = num(form.age, -1);
-      if (age < 16 || age > 70) return "Please enter an age between 16 and 70.";
+      if (age < 16 || age > 70) return t("wiz.err.age");
     }
     if (step === 2) {
       if (form.englishTest !== "none" && form.englishTest !== "self-estimate") {
         const vals = Object.values(form.englishScores);
-        if (vals.some((v) => v.trim() === "")) {
-          return "Enter all four test scores, or switch to “Estimate my level”.";
-        }
+        if (vals.some((v) => v.trim() === "")) return t("wiz.err.scores");
       }
-      if (form.englishTest === "none" && form.frenchNCLC === "") {
-        return "Economic immigration requires an official language. Pick a test or an estimate for English or French.";
-      }
+      if (form.englishTest === "none" && form.frenchNCLC === "") return t("wiz.err.lang");
     }
     return null;
   }
@@ -275,23 +297,35 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
       return;
     }
     setError(null);
-    if (step < STEP_TITLES.length - 1) {
+    if (step < STEP_KEYS.length - 1) {
       setStep(step + 1);
     } else {
       onComplete(toProfile(form));
     }
   }
 
+  const eduOptions = EDUCATION_KEYS.map((o) => (
+    <option key={o.value} value={o.value}>
+      {t(o.key)}
+    </option>
+  ));
+
+  const clbOptions = CLB_LEVELS.map((lvl) => (
+    <option key={lvl} value={lvl}>
+      CLB {lvl} — {t(`clb.${lvl}` as DictKey)}
+    </option>
+  ));
+
   return (
     <div>
       {/* Progress */}
       <ol className="mb-8 flex items-center gap-1 text-xs font-medium text-soft">
-        {STEP_TITLES.map((title, i) => (
-          <li key={title} className="flex flex-1 flex-col gap-1.5">
+        {STEP_KEYS.map((key, i) => (
+          <li key={key} className="flex flex-1 flex-col gap-1.5">
             <span
               className={`h-1.5 rounded-full ${i <= step ? "bg-maple" : "bg-slate-200"}`}
             />
-            <span className={i === step ? "text-ink" : ""}>{title}</span>
+            <span className={i === step ? "text-ink" : ""}>{t(key)}</span>
           </li>
         ))}
       </ol>
@@ -299,7 +333,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
       <div className="space-y-5">
         {step === 0 && (
           <>
-            <Field label="How old are you?">
+            <Field label={t("wiz.age")}>
               <input
                 type="number"
                 min={16}
@@ -307,60 +341,49 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
                 value={form.age}
                 onChange={(e) => set("age", e.target.value)}
                 className={inputCls}
-                placeholder="e.g. 29"
+                placeholder={t("wiz.age.ph")}
               />
             </Field>
-            <Field label="Marital status">
+            <Field label={t("wiz.marital")}>
               <select
                 value={form.maritalStatus}
                 onChange={(e) => set("maritalStatus", e.target.value as FormState["maritalStatus"])}
                 className={inputCls}
               >
-                <option value="single">Single / divorced / widowed</option>
-                <option value="married">Married or common-law</option>
+                <option value="single">{t("wiz.marital.single")}</option>
+                <option value="married">{t("wiz.marital.married")}</option>
               </select>
             </Field>
             {form.maritalStatus === "married" && (
               <Toggle
                 checked={form.spouseAccompanying}
                 onChange={(v) => set("spouseAccompanying", v)}
-                label="My spouse/partner would immigrate with me"
-                hint="If your partner is already a Canadian citizen or PR, leave this off — you're scored as single."
+                label={t("wiz.spouseComing")}
+                hint={t("wiz.spouseComing.hint")}
               />
             )}
             {form.maritalStatus === "married" && form.spouseAccompanying && (
               <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <Field label="Spouse's highest education">
+                <Field label={t("wiz.spouse.edu")}>
                   <select
                     value={form.spouseEducation}
                     onChange={(e) => set("spouseEducation", e.target.value as EducationLevel)}
                     className={inputCls}
                   >
-                    {EDUCATION_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
+                    {eduOptions}
                   </select>
                 </Field>
-                <Field
-                  label="Spouse's English/French level (CLB)"
-                  hint="Leave blank if untested — spouse language only counts with an official test."
-                >
+                <Field label={t("wiz.spouse.lang")} hint={t("wiz.spouse.lang.hint")}>
                   <select
                     value={form.spouseCLB}
                     onChange={(e) => set("spouseCLB", e.target.value)}
                     className={inputCls}
                   >
-                    <option value="">Not tested / unknown</option>
-                    {clbSelfEstimateOptions.map((o) => (
-                      <option key={o.clb} value={o.clb}>
-                        CLB {o.clb} — {o.label}
-                      </option>
-                    ))}
+                    <option value="">{t("wiz.spouse.lang.none")}</option>
+                    {clbOptions}
                   </select>
                 </Field>
-                <Field label="Spouse's years of skilled work in Canada">
+                <Field label={t("wiz.spouse.work")}>
                   <input
                     type="number"
                     min={0}
@@ -377,26 +400,16 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
 
         {step === 1 && (
           <>
-            <Field
-              label="Your highest completed education"
-              hint="Foreign credentials are fine — they'll need an Educational Credential Assessment (ECA) later."
-            >
+            <Field label={t("wiz.edu")} hint={t("wiz.edu.hint")}>
               <select
                 value={form.education}
                 onChange={(e) => set("education", e.target.value as EducationLevel)}
                 className={inputCls}
               >
-                {EDUCATION_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
+                {eduOptions}
               </select>
             </Field>
-            <Field
-              label="Did you complete any of that education in Canada?"
-              hint="Canadian credentials earn bonus points. A Canadian master's or PhD counts in the 3+ year tier."
-            >
+            <Field label={t("wiz.cdnCred")} hint={t("wiz.cdnCred.hint")}>
               <select
                 value={form.canadianCredential}
                 onChange={(e) =>
@@ -404,9 +417,9 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
                 }
                 className={inputCls}
               >
-                <option value="none">No</option>
-                <option value="one-or-two-year">Yes — 1 or 2 year credential</option>
-                <option value="three-plus-year">Yes — 3+ years, master&apos;s or PhD</option>
+                <option value="none">{t("cdnCred.none")}</option>
+                <option value="one-or-two-year">{t("cdnCred.short")}</option>
+                <option value="three-plus-year">{t("cdnCred.long")}</option>
               </select>
             </Field>
           </>
@@ -414,24 +427,24 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
 
         {step === 2 && (
           <>
-            <Field label="English ability" hint="Pick the test you've taken, or estimate honestly.">
+            <Field label={t("wiz.english")} hint={t("wiz.english.hint")}>
               <select
                 value={form.englishTest}
                 onChange={(e) => set("englishTest", e.target.value as EnglishTest)}
                 className={inputCls}
               >
-                <option value="ielts-general">I have IELTS General Training scores</option>
-                <option value="celpip-general">I have CELPIP-General scores</option>
-                <option value="pte-core">I have PTE Core scores</option>
-                <option value="self-estimate">Estimate my level (no test yet)</option>
-                <option value="none">No English</option>
+                <option value="ielts-general">{t("eng.ielts")}</option>
+                <option value="celpip-general">{t("eng.celpip")}</option>
+                <option value="pte-core">{t("eng.pte")}</option>
+                <option value="self-estimate">{t("eng.self")}</option>
+                <option value="none">{t("eng.none")}</option>
               </select>
             </Field>
 
             {form.englishTest !== "none" && form.englishTest !== "self-estimate" && (
               <div className="grid grid-cols-2 gap-4">
-                {(["listening", "reading", "writing", "speaking"] as const).map((ability) => (
-                  <Field key={ability} label={ability[0].toUpperCase() + ability.slice(1)}>
+                {ABILITIES.map((ability) => (
+                  <Field key={ability} label={t(ABILITY_KEYS[ability])}>
                     <input
                       type="number"
                       step="0.5"
@@ -448,35 +461,28 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
             )}
 
             {form.englishTest === "self-estimate" && (
-              <Field label="Estimated English level">
+              <Field label={t("wiz.engSelf")}>
                 <select
                   value={form.englishSelfCLB}
                   onChange={(e) => set("englishSelfCLB", e.target.value)}
                   className={inputCls}
                 >
-                  {clbSelfEstimateOptions.map((o) => (
-                    <option key={o.clb} value={o.clb}>
-                      CLB {o.clb} — {o.label}
-                    </option>
-                  ))}
+                  {clbOptions}
                 </select>
               </Field>
             )}
 
-            <Field
-              label="French ability (NCLC)"
-              hint="TEF/TCF Canada reports show your NCLC level. French at NCLC 7+ unlocks bonus points and French-category draws."
-            >
+            <Field label={t("wiz.french")} hint={t("wiz.french.hint")}>
               <select
                 value={form.frenchNCLC}
                 onChange={(e) => set("frenchNCLC", e.target.value)}
                 className={inputCls}
               >
-                <option value="">No French / below NCLC 4</option>
-                {[4, 5, 6, 7, 8, 9, 10].map((lvl) => (
+                <option value="">{t("wiz.french.none")}</option>
+                {CLB_LEVELS.map((lvl) => (
                   <option key={lvl} value={lvl}>
                     NCLC {lvl}
-                    {lvl >= 7 ? " — unlocks French bonus" : ""}
+                    {lvl >= 7 ? ` ${t("wiz.french.unlock")}` : ""}
                   </option>
                 ))}
               </select>
@@ -486,21 +492,21 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
 
         {step === 3 && (
           <>
-            <Field label="What kind of work do you mainly do?">
+            <Field label={t("wiz.teer")}>
               <select
                 value={form.teer}
                 onChange={(e) => set("teer", e.target.value)}
                 className={inputCls}
               >
-                {TEER_OPTIONS.map((o) => (
+                {TEER_KEYS.map((o) => (
                   <option key={o.value} value={o.value}>
-                    {o.label}
+                    {t(o.key)}
                   </option>
                 ))}
               </select>
             </Field>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Years of skilled work outside Canada">
+              <Field label={t("wiz.foreignYears")}>
                 <input
                   type="number"
                   min={0}
@@ -510,7 +516,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
                   className={inputCls}
                 />
               </Field>
-              <Field label="Years of skilled work inside Canada">
+              <Field label={t("wiz.cdnYears")}>
                 <input
                   type="number"
                   min={0}
@@ -521,63 +527,69 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
                 />
               </Field>
             </div>
-            <Field
-              label="Is your occupation in one of these in-demand groups?"
-              hint="IRCC runs special draws with lower cutoffs for these categories."
-            >
+            <Field label={t("wiz.cat")} hint={t("wiz.cat.hint")}>
               <select
                 value={form.occupationCategory}
                 onChange={(e) => set("occupationCategory", e.target.value as OccupationCategory)}
                 className={inputCls}
               >
-                <option value="none">None of these / not sure</option>
-                <option value="healthcare">Healthcare & social services</option>
-                <option value="stem">STEM (science, tech, engineering, math)</option>
-                <option value="trades">Skilled trades (construction, mechanics…)</option>
-                <option value="education">Education (teachers, ECEs)</option>
-                <option value="agriculture">Agriculture & agri-food</option>
+                <option value="none">{t("cat.none")}</option>
+                <option value="healthcare">{t("cat.healthcare")}</option>
+                <option value="stem">{t("cat.stem")}</option>
+                <option value="trades">{t("cat.trades")}</option>
+                <option value="education">{t("cat.education")}</option>
+                <option value="agriculture">{t("cat.agriculture")}</option>
               </select>
             </Field>
             <Toggle
               checked={form.tradesCertificate}
               onChange={(v) => set("tradesCertificate", v)}
-              label="I hold a Canadian provincial trade certificate of qualification"
+              label={t("wiz.tradeCert")}
             />
             <Toggle
               checked={form.hasJobOffer}
               onChange={(v) => set("hasJobOffer", v)}
-              label="I have (or expect) a job offer from a Canadian employer"
-              hint="No longer worth CRS points, but it opens the work-permit-first route."
+              label={t("wiz.jobOffer")}
+              hint={t("wiz.jobOffer.hint")}
             />
           </>
         )}
 
         {step === 4 && (
           <>
-            <Field label="Where are you right now?">
+            <Field label={t("wiz.where")}>
               <select
                 value={form.inCanadaStatus}
                 onChange={(e) => set("inCanadaStatus", e.target.value as InCanadaStatus)}
                 className={inputCls}
               >
-                <option value="outside">Outside Canada</option>
-                <option value="visitor">In Canada as a visitor</option>
-                <option value="student">In Canada on a study permit</option>
-                <option value="worker">In Canada on a work permit</option>
+                <option value="outside">{t("where.outside")}</option>
+                <option value="visitor">{t("where.visitor")}</option>
+                <option value="student">{t("where.student")}</option>
+                <option value="worker">{t("where.worker")}</option>
               </select>
             </Field>
-            <Field
-              label="Settlement funds available"
-              hint="Unencumbered savings you could show IRCC. Express Entry (FSW/FST) and study permits have minimum amounts."
-            >
+            <Field label={t("wiz.citizenship")} hint={t("wiz.citizenship.hint")}>
+              <select
+                value={form.citizenship}
+                onChange={(e) => set("citizenship", e.target.value as Citizenship)}
+                className={inputCls}
+              >
+                <option value="other">{t("cit.other")}</option>
+                <option value="hong-kong">{t("cit.hk")}</option>
+                <option value="ukraine">{t("cit.ua")}</option>
+                <option value="afghanistan">{t("cit.af")}</option>
+              </select>
+            </Field>
+            <Field label={t("wiz.funds")} hint={t("wiz.funds.hint")}>
               <select
                 value={form.fundsBand}
                 onChange={(e) => set("fundsBand", e.target.value as FundsBand)}
                 className={inputCls}
               >
-                {FUNDS_OPTIONS.map((o) => (
+                {FUNDS_KEYS.map((o) => (
                   <option key={o.value} value={o.value}>
-                    {o.label}
+                    {t(o.key)}
                   </option>
                 ))}
               </select>
@@ -585,13 +597,19 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
             <Toggle
               checked={form.siblingInCanada}
               onChange={(v) => set("siblingInCanada", v)}
-              label="I have a sibling (18+) who is a Canadian citizen or PR"
-              hint="Worth 15 CRS points."
+              label={t("wiz.sibling")}
+              hint={t("wiz.sibling.hint")}
+            />
+            <Toggle
+              checked={form.refugeeStatus}
+              onChange={(v) => set("refugeeStatus", v)}
+              label={t("wiz.refugee")}
+              hint={t("wiz.refugee.hint")}
             />
             <Toggle
               checked={form.openToStudy}
               onChange={(v) => set("openToStudy", v)}
-              label="I'd consider studying in Canada if it's the best route"
+              label={t("wiz.study")}
             />
           </>
         )}
@@ -608,14 +626,14 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
           disabled={step === 0}
           className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold disabled:opacity-40"
         >
-          ← Back
+          {t("wiz.back")}
         </button>
         <button
           type="button"
           onClick={next}
           className="rounded-lg bg-maple px-6 py-2.5 text-sm font-semibold text-white hover:bg-maple-dark"
         >
-          {step === STEP_TITLES.length - 1 ? "Build my roadmap" : "Continue →"}
+          {step === STEP_KEYS.length - 1 ? t("wiz.submit") : t("wiz.continue")}
         </button>
       </div>
     </div>

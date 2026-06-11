@@ -13,7 +13,7 @@
 
 import type { RuleSource } from "@/lib/types";
 
-export const RULES_VERSION = "2026.01";
+export const RULES_VERSION = "2026.06";
 
 export const sources = {
   crsGrid: {
@@ -91,7 +91,38 @@ export const sources = {
     url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/application/check-processing-times.html",
     lastVerified: "2026-01-15",
   },
+  hkPathway: {
+    label: "IRCC — Permanent residence pathways for Hong Kong residents",
+    url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/hong-kong-residents-permanent-residence.html",
+    lastVerified: "2026-01-15",
+  },
+  ukraineMeasures: {
+    label: "IRCC — Measures for Ukrainians (CUAET)",
+    url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/ukraine-measures.html",
+    lastVerified: "2026-01-15",
+  },
+  afghanistanMeasures: {
+    label: "IRCC — Programs for Afghan nationals",
+    url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/refugees/afghanistan.html",
+    lastVerified: "2026-01-15",
+  },
+  empp: {
+    label: "IRCC — Economic Mobility Pathways Pilot (skilled refugees)",
+    url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/refugees/economic-mobility-pathways-pilot.html",
+    lastVerified: "2026-01-15",
+  },
 } satisfies Record<string, RuleSource>;
+
+/**
+ * Hong Kong public-policy pathways (Streams A and B).
+ * The public policy is time-limited — verify expiry before relying on it.
+ */
+export const hkPathway = {
+  policyExpiry: "2026-08-31",
+  minCLB: 5,
+  streamBWorkMonths: 12,
+  processingMonths: [12, 24] as const,
+};
 
 /** Government fees in CAD. */
 export const fees = {

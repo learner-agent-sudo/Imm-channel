@@ -21,6 +21,9 @@ IRCC's [Come to Canada](https://www.canada.ca/en/immigration-refugees-citizenshi
 
 - **Audience:** skilled workers and prospective international students (federal programs; Quebec excluded).
 - **Programs modeled:** Express Entry (FSW with the 67-point grid, CEC, FST), full CRS calculator, PNP at a high level, study permit → PGWP → CEC, LMIA work-permit route, citizenship requirements.
+- **Special measures:** the Hong Kong public policy (Stream A and Stream B — no points grid, CLB 5) as fully ranked pathways, plus status notices for CUAET (Ukraine), Afghan programs, and the EMPP for people with refugee/displaced status. One optional citizenship question powers these; "prefer not to say" is the default.
+- **Languages:** English, French, Traditional Chinese, Simplified Chinese. The questionnaire, navigation, and result labels are fully translated (`lib/i18n/`); engine-generated plan prose is English-first with a visible note in other locales.
+- **Guides:** step-level "rabbit holes" — `/guides/study-permit` and `/guides/express-entry` — linked from the roadmap's steps and the "Your next move" panel.
 - **Live data:** Express Entry draw cutoffs from IRCC's published JSON (with a bundled snapshot fallback when the feed is unreachable).
 - **Policy watch (hybrid):** `scripts/policy-monitor.mjs` runs on a schedule via GitHub Actions, diffs IRCC's news feed and draw rounds against `data/monitor-state.json`, and opens a `policy-monitor` issue for human review. Rules are only changed by a human after verifying the official source.
 
