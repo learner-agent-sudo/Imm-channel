@@ -18,7 +18,11 @@ const FUNDS_BAND_MAX: Record<Profile["fundsBand"], number> = {
 };
 
 export function familySize(profile: Profile): number {
-  return 1 + (profile.maritalStatus === "married" && profile.spouseAccompanying ? 1 : 0);
+  return (
+    1 +
+    (profile.maritalStatus === "married" && profile.spouseAccompanying ? 1 : 0) +
+    Math.max(0, profile.dependentChildren)
+  );
 }
 
 export function requiredFunds(profile: Profile): number {

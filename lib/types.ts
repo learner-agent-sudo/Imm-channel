@@ -50,9 +50,23 @@ export type InCanadaStatus = "outside" | "visitor" | "student" | "worker";
 
 /**
  * Citizenship matters only where IRCC runs nationality-specific measures.
- * "other" is the default and is never transmitted anywhere.
+ * "other" is the default and is never transmitted anywhere. "crisis-other"
+ * covers countries with episodic humanitarian measures not listed here.
  */
-export type Citizenship = "other" | "hong-kong" | "ukraine" | "afghanistan";
+export type Citizenship =
+  | "other"
+  | "hong-kong"
+  | "ukraine"
+  | "afghanistan"
+  | "sudan"
+  | "haiti"
+  | "iran"
+  | "usa"
+  | "mexico"
+  | "crisis-other";
+
+/** Whether the user's passport is in the IEC working-holiday country list. */
+export type IecEligible = "yes" | "no" | "unsure";
 
 export type FundsBand =
   | "under-10k"
@@ -103,6 +117,12 @@ export interface Profile {
   citizenship: Citizenship;
   /** Recognized refugee or displaced-person status (UNHCR or similar). */
   refugeeStatus: boolean;
+  /**
+   * Dependent children who would immigrate too (IRCC definition: under 22
+   * and unmarried). They don't change CRS but raise funds/fees/family size.
+   */
+  dependentChildren: number;
+  iecEligible: IecEligible;
 }
 
 /* ----------------------------- Results types ----------------------------- */

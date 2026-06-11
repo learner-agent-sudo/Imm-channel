@@ -111,6 +111,26 @@ export const sources = {
     url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/refugees/economic-mobility-pathways-pilot.html",
     lastVerified: "2026-01-15",
   },
+  iec: {
+    label: "IRCC — International Experience Canada (working holiday)",
+    url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/work-travel-canada/international-experience-canada.html",
+    lastVerified: "2026-01-15",
+  },
+  refugees: {
+    label: "IRCC — Refugees and asylum (resettlement, crisis measures)",
+    url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/refugees.html",
+    lastVerified: "2026-01-15",
+  },
+  humanitarian: {
+    label: "IRCC — Humanitarian and compassionate grounds",
+    url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/humanitarian-compassionate.html",
+    lastVerified: "2026-01-15",
+  },
+  workPermits: {
+    label: "IRCC — Temporary work permits (incl. LMIA-exempt categories)",
+    url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/work-canada/permit/temporary.html",
+    lastVerified: "2026-01-15",
+  },
 } satisfies Record<string, RuleSource>;
 
 /**
@@ -132,10 +152,19 @@ export const fees = {
   eeSpouseRPRF: 575,
   eeDependentChild: 260,
   biometricsPerPerson: 85,
+  biometricsFamilyMax: 170, // families applying together pay at most this
   studyPermit: 150,
   workPermit: 155,
   openWorkPermitHolder: 100,
   citizenshipAdult: 630,
+};
+
+/** International Experience Canada (working holiday) basics. */
+export const iecRule = {
+  ageMin: 18,
+  /** Upper age limit varies by country (29, 30 or 35) — 35 is the maximum. */
+  ageMaxByCountry: [29, 35] as const,
+  participationFee: 172, // IEC fee + open work permit holder fee ($100) on top
 };
 
 /** Typical third-party costs in CAD (ranges, not government fees). */

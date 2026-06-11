@@ -3,7 +3,6 @@
  */
 
 import type { Profile, RoadmapStep } from "@/lib/types";
-import { familySize } from "@/lib/eligibility";
 import { citizenshipRule, fees, processing, sources, thirdPartyCosts } from "@/lib/rules/parameters";
 
 export function sumSteps(steps: RoadmapStep[]): [number, number] {
@@ -15,16 +14,21 @@ export function sumSteps(steps: RoadmapStep[]): [number, number] {
 
 /** Government + typical third-party costs for one Express Entry application. */
 export function eeCosts(profile: Profile, includeEca: boolean): [number, number] {
-  const fam = familySize(profile);
+  const adults =
+    1 + (profile.maritalStatus === "married" && profile.spouseAccompanying ? 1 : 0);
+  const children = Math.max(0, profile.dependentChildren);
+  const fam = adults + children;
   const gov =
-    (fees.eePrincipalProcessing + fees.eeRightOfPermanentResidence) * fam +
-    fees.biometricsPerPerson * fam;
+    (fees.eePrincipalProcessing + fees.eeRightOfPermanentResidence) * adults +
+    fees.eeDependentChild * children +
+    Math.min(fees.biometricsPerPerson * fam, fees.biometricsFamilyMax);
   const [testMin, testMax] = thirdPartyCosts.languageTest;
   const [medMin, medMax] = thirdPartyCosts.medicalExam;
   const [ecaMin, ecaMax] = includeEca ? thirdPartyCosts.eca : [0, 0];
+  // Language tests are adults-only; medical exams cover every family member.
   return [
-    gov + testMin * fam + medMin * fam + ecaMin,
-    gov + testMax * fam + medMax * fam + ecaMax,
+    gov + testMin * adults + medMin * fam + ecaMin,
+    gov + testMax * adults + medMax * fam + ecaMax,
   ];
 }
 

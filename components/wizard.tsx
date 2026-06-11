@@ -12,6 +12,7 @@ import type {
   CLBScores,
   EducationLevel,
   FundsBand,
+  IecEligible,
   InCanadaStatus,
   OccupationCategory,
   Profile,
@@ -53,6 +54,8 @@ interface FormState {
   openToStudy: boolean;
   citizenship: Citizenship;
   refugeeStatus: boolean;
+  dependentChildren: string;
+  iecEligible: IecEligible;
 }
 
 const initialForm: FormState = {
@@ -80,7 +83,22 @@ const initialForm: FormState = {
   openToStudy: true,
   citizenship: "other",
   refugeeStatus: false,
+  dependentChildren: "0",
+  iecEligible: "unsure",
 };
+
+const CITIZENSHIP_KEYS: { value: Citizenship; key: DictKey }[] = [
+  { value: "other", key: "cit.other" },
+  { value: "hong-kong", key: "cit.hk" },
+  { value: "ukraine", key: "cit.ua" },
+  { value: "afghanistan", key: "cit.af" },
+  { value: "sudan", key: "cit.sudan" },
+  { value: "haiti", key: "cit.haiti" },
+  { value: "iran", key: "cit.iran" },
+  { value: "usa", key: "cit.usa" },
+  { value: "mexico", key: "cit.mexico" },
+  { value: "crisis-other", key: "cit.crisis" },
+];
 
 const EDUCATION_KEYS: { value: EducationLevel; key: DictKey }[] = [
   { value: "less-than-secondary", key: "edu.none" },
@@ -195,6 +213,8 @@ export function toProfile(form: FormState): Profile {
     openToStudy: form.openToStudy,
     citizenship: form.citizenship,
     refugeeStatus: form.refugeeStatus,
+    dependentChildren: Math.max(0, Math.min(10, Math.round(num(form.dependentChildren)))),
+    iecEligible: form.iecEligible,
   };
 }
 
@@ -395,6 +415,16 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
                 </Field>
               </div>
             )}
+            <Field label={t("wiz.children")} hint={t("wiz.children.hint")}>
+              <input
+                type="number"
+                min={0}
+                max={10}
+                value={form.dependentChildren}
+                onChange={(e) => set("dependentChildren", e.target.value)}
+                className={inputCls}
+              />
+            </Field>
           </>
         )}
 
@@ -575,10 +605,22 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
                 onChange={(e) => set("citizenship", e.target.value as Citizenship)}
                 className={inputCls}
               >
-                <option value="other">{t("cit.other")}</option>
-                <option value="hong-kong">{t("cit.hk")}</option>
-                <option value="ukraine">{t("cit.ua")}</option>
-                <option value="afghanistan">{t("cit.af")}</option>
+                {CITIZENSHIP_KEYS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {t(o.key)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label={t("wiz.iec")} hint={t("wiz.iec.hint")}>
+              <select
+                value={form.iecEligible}
+                onChange={(e) => set("iecEligible", e.target.value as IecEligible)}
+                className={inputCls}
+              >
+                <option value="unsure">{t("iec.unsure")}</option>
+                <option value="yes">{t("iec.yes")}</option>
+                <option value="no">{t("iec.no")}</option>
               </select>
             </Field>
             <Field label={t("wiz.funds")} hint={t("wiz.funds.hint")}>

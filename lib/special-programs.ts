@@ -10,8 +10,17 @@
 
 import type { PathwayPlan, Profile, RoadmapStep, SpecialNotice } from "@/lib/types";
 import { minCLB } from "@/lib/language";
-import { citizenshipSteps, sumSteps } from "@/lib/plan-shared";
-import { fees, hkPathway, processing, sources, studyCostOfLiving, thirdPartyCosts } from "@/lib/rules/parameters";
+import { calculateCRS } from "@/lib/crs";
+import { citizenshipSteps, eeCosts, sumSteps } from "@/lib/plan-shared";
+import {
+  fees,
+  hkPathway,
+  iecRule,
+  processing,
+  sources,
+  studyCostOfLiving,
+  thirdPartyCosts,
+} from "@/lib/rules/parameters";
 
 export interface SpecialPrograms {
   pathways: PathwayPlan[];
@@ -202,6 +211,82 @@ function hkStreamAViaStudy(profile: Profile): PathwayPlan {
   };
 }
 
+/* --------------------------- IEC working holiday --------------------------- */
+
+function iecAgeOk(profile: Profile): boolean {
+  return profile.age >= iecRule.ageMin && profile.age <= Math.max(...iecRule.ageMaxByCountry);
+}
+
+/**
+ * International Experience Canada: an open work permit by passport lottery —
+ * no employer, no points. The most underrated route to Canadian experience
+ * for the ~36 participating nationalities.
+ */
+function iecPathway(profile: Profile): PathwayPlan {
+  const future: Profile = {
+    ...profile,
+    age: profile.age + 2,
+    canadianWorkYears: Math.max(1, profile.canadianWorkYears),
+    teer: profile.teer ?? 1,
+    inCanadaStatus: "worker",
+  };
+  const projected = calculateCRS(future).total;
+  const steps: RoadmapStep[] = [
+    {
+      title: "Enter the IEC pool for your country and get an invitation",
+      detail:
+        "Each participating country has its own quota, age cap (29, 30 or 35) and rounds. Working Holiday gives an OPEN work permit — no job offer needed. Pools typically open December–January; invitations flow through the year.",
+      monthsMin: 1,
+      monthsMax: 5,
+      officialLink: sources.iec.url,
+    },
+    {
+      title: "Land in Canada and work in a skilled job",
+      detail:
+        "The permit lasts 12–24 months depending on your country. Aim for TEER 0–3 work from day one: 12 months of skilled work makes you CEC-eligible and adds Canadian-experience CRS points.",
+      monthsMin: 12,
+      monthsMax: 14,
+      officialLink: sources.cec.url,
+    },
+    {
+      title: "Express Entry (CEC) — invitation, application, landing",
+      detail: `Projected score after a year of Canadian work: ~${projected}. CEC draws favour exactly this profile; a second IEC year or employer permit bridges any gap.`,
+      monthsMin: processing.expressEntryAfterITA[0],
+      monthsMax: processing.expressEntryAfterITA[1] + 2,
+      officialLink: sources.drawRounds.url,
+      guide: "/guides/express-entry",
+    },
+    ...citizenshipSteps(1.5),
+  ];
+  const [mMin, mMax] = sumSteps(steps.slice(0, -2));
+  const [cMin, cMax] = sumSteps(steps);
+  const [costMin, costMax] = eeCosts(profile, false);
+  return {
+    id: "iec",
+    title: "Working holiday (IEC) → CEC",
+    tagline: "An open work permit by passport — earn Canadian experience without an employer or a study budget.",
+    status: "action-needed",
+    rank: 2,
+    steps,
+    monthsToPRMin: mMin,
+    monthsToPRMax: mMax,
+    monthsToCitizenshipMin: cMin,
+    monthsToCitizenshipMax: cMax,
+    estCostMinCAD: iecRule.participationFee + fees.openWorkPermitHolder + costMin,
+    estCostMaxCAD: iecRule.participationFee + fees.openWorkPermitHolder + costMax + 2500, // flights, insurance, setup
+    requirements: [
+      { met: iecAgeOk(profile), label: "Aged 18–35 (some countries cap at 29 or 30)" },
+      { met: true, label: "Passport from an IEC partner country", detail: "Check your country's quota and category on the IRCC page." },
+      { met: true, label: "~$2,500 CAD settlement funds + health insurance for the stay" },
+    ],
+    caveats: [
+      "Quotas are competitive for some countries (invitations are drawn by lottery) — enter the pool early in the season.",
+      "Working holiday time also earns the half-day citizenship credit (max 1 year).",
+    ],
+    projectedCrs: projected,
+  };
+}
+
 /* ------------------------------- Builder ------------------------------- */
 
 export function buildSpecialPrograms(profile: Profile): SpecialPrograms {
@@ -250,14 +335,86 @@ export function buildSpecialPrograms(profile: Profile): SpecialPrograms {
     });
   }
 
+  if (profile.citizenship === "sudan") {
+    notices.push({
+      id: "sudan",
+      title: "Sudan — family-based humanitarian pathway (capped)",
+      summary:
+        "IRCC opened a family-based humanitarian pathway for people fleeing the conflict in Sudan with family in Canada; intake has been limited by caps and paused when full. If you have Canadian family, check the current intake status; otherwise the regular programs in your plan and a humanitarian & compassionate application are the open routes.",
+      status: "check",
+      link: sources.refugees.url,
+    });
+  }
+
+  if (profile.citizenship === "haiti") {
+    notices.push({
+      id: "haiti",
+      title: "Haiti — Americas humanitarian pathway closed",
+      summary:
+        "The 2023–24 humanitarian pathway for Haitian (and Colombian/Venezuelan) nationals with family in Canada reached its cap and closed. Family sponsorship, humanitarian & compassionate applications, and the regular economic programs below remain open.",
+      status: "closed",
+      link: sources.refugees.url,
+    });
+  }
+
+  if (profile.citizenship === "iran") {
+    notices.push({
+      id: "iran",
+      title: "Iran — temporary measures wound down",
+      summary:
+        "Special measures for Iranians already in Canada (fee-waived status extensions and open work permits) have largely ended. Check the current status if you're in Canada; otherwise your plan runs through the regular programs below.",
+      status: "check",
+      link: sources.refugees.url,
+    });
+  }
+
+  if (profile.citizenship === "usa" || profile.citizenship === "mexico") {
+    notices.push({
+      id: "cusma",
+      title: "CUSMA professional work permits — a faster work route",
+      summary:
+        "US and Mexican citizens with a job offer in a listed profession (engineers, accountants, computer/systems analysts, scientists, and ~60 more) can get an LMIA-exempt work permit — often processed at the border. That makes the work-permit-first route to CEC much faster than for other nationalities. Intra-company transfers are also available.",
+      status: "open",
+      link: sources.workPermits.url,
+    });
+  }
+
+  if (profile.citizenship === "crisis-other") {
+    notices.push({
+      id: "crisis",
+      title: "Country-specific crisis measures — check the current list",
+      summary:
+        "IRCC announces time-limited measures (status extensions, fee waivers, family-based pathways) for countries in crisis, and the list changes with events. Check the refugees & crisis page for your country, and note that a humanitarian & compassionate (H&C) application is always available for people already in Canada with compelling circumstances.",
+      status: "check",
+      link: sources.refugees.url,
+    });
+  }
+
   if (profile.refugeeStatus) {
     notices.push({
       id: "empp",
-      title: "Economic Mobility Pathways Pilot (EMPP) — for skilled refugees",
+      title: "Routes for recognized refugees: EMPP, sponsorship, resettlement",
       summary:
-        "EMPP lets people with refugee or displaced-person status immigrate through economic programs with relaxed requirements (loan access, flexible proof of funds, NGO support). Federal streams generally need a Canadian job offer and have annual caps — check the current intake status.",
+        "Three doors: (1) the Economic Mobility Pathways Pilot lets skilled refugees use economic programs with relaxed rules — federal streams generally need a Canadian job offer and have caps; (2) private sponsorship (PSR) through a sponsoring group or Group of Five; (3) government-assisted resettlement via UNHCR referral. EMPP is the one you can actively drive — start with its current intake status.",
       status: "check",
       link: sources.empp.url,
+    });
+  }
+
+  // IEC working holiday: passport-based, age-gated, and the cheapest way to
+  // Canadian experience. A full pathway when confirmed, a pointer when unsure.
+  const iecAge = iecAgeOk(profile);
+  const abroad = profile.inCanadaStatus === "outside" || profile.inCanadaStatus === "visitor";
+  if (profile.iecEligible === "yes" && iecAge && abroad) {
+    pathways.push(iecPathway(profile));
+  } else if (profile.iecEligible === "unsure" && iecAge && abroad) {
+    notices.push({
+      id: "iec-check",
+      title: "Check if your passport qualifies for a working holiday (IEC)",
+      summary:
+        "About 36 countries have youth-mobility agreements with Canada (most of Europe, UK, Australia, Japan, Korea, Taiwan, Hong Kong, Chile, Costa Rica and more). If yours is on the list and you're within the age cap, an open 1–2 year work permit is often the fastest, cheapest start toward the Canadian Experience Class.",
+      status: "check",
+      link: sources.iec.url,
     });
   }
 

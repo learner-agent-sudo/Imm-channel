@@ -29,6 +29,8 @@ const fswCandidate: Profile = {
   openToStudy: true,
   citizenship: "other",
   refugeeStatus: false,
+  dependentChildren: 0,
+  iecEligible: "no",
 };
 
 describe("buildPlannerResult", () => {

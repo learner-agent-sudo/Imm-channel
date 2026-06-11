@@ -29,6 +29,8 @@ const base: Profile = {
   openToStudy: false,
   citizenship: "other",
   refugeeStatus: false,
+  dependentChildren: 0,
+  iecEligible: "no",
 };
 
 describe("calculateCRS — hand-verified golden profiles", () => {
