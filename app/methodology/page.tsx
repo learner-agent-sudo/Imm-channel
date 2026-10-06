@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { disclaimer, RULES_VERSION, sources } from "@/lib/rules/parameters";
 
 export const metadata: Metadata = {
@@ -35,16 +36,18 @@ export default function MethodologyPage() {
           An automated job watches IRCC news releases and the official Express
           Entry rounds feed. When something changes, it opens a review task; we
           verify the change against the official text before updating the rules
-          and the <a href="/updates" className="text-maple underline underline-offset-2">updates feed</a>.
-          Draw cutoffs are the exception: they come straight from IRCC&apos;s
-          published JSON and refresh automatically.
+          and the <Link href="/updates" className="text-maple underline underline-offset-2">updates feed</Link>.
+          Draw cutoffs are the exception: a daily job copies them from
+          IRCC&apos;s published rounds feed and republishes the site, so they
+          are never more than about a day old.
         </p>
         <p>
           <strong className="text-ink">Privacy by architecture.</strong> The
           questionnaire and all scoring run in your browser. We don&apos;t ask
           for your name or email, there are no accounts, and your answers are
-          never transmitted or stored. The only network request the planner
-          makes is for public draw statistics.
+          never transmitted or stored. The planner makes no network requests
+          at all — the draw statistics it compares against are built into the
+          page.
         </p>
       </section>
 

@@ -440,7 +440,7 @@ export default function Results({
         <div className="flex items-end justify-between">
           <h2 className="text-xl font-bold">{t("res.pathways")}</h2>
           <p className="text-xs text-soft">
-            {draws.source === "live" ? t("res.drawLive") : t("res.drawSnapshot")} · {draws.asOf}
+            {t("res.drawData", { date: draws.asOf })}
           </p>
         </div>
         <div className="mt-4 space-y-6">

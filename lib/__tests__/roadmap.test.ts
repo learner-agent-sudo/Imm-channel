@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { buildPlannerResult } from "@/lib/roadmap";
-import { getSnapshotDraws, streamKey } from "@/lib/draws";
+import { streamKey } from "@/lib/draws";
+import { fixtureDraws } from "./fixtures/draws";
 import type { Profile } from "@/lib/types";
 
-const draws = getSnapshotDraws();
+const draws = fixtureDraws;
 
 const fswCandidate: Profile = {
   age: 29,
@@ -40,7 +41,7 @@ describe("buildPlannerResult", () => {
     expect(ids).toContain("express-entry");
     expect(ids).toContain("pnp");
     expect(ids).toContain("study");
-    // 469 is below every snapshot cutoff stream available to this profile.
+    // 469 is below every fixture cutoff stream available to this profile.
     expect(r.pathways.find((p) => p.id === "express-entry")!.status).toBe("action-needed");
   });
 
@@ -86,7 +87,7 @@ describe("buildPlannerResult", () => {
     );
     const ee = r.pathways.find((p) => p.id === "express-entry")!;
     const french = ee.drawComparison!.find((d) => d.stream.includes("French"));
-    // 469 + 12 (second language) + 50 (French bonus) = 531 vs cutoff 440.
+    // 469 + 12 (second language) + 50 (French bonus) = 531 vs fixture cutoff 409.
     expect(french).toBeDefined();
     expect(french!.competitive).toBe("above");
     expect(ee.status).toBe("ready");

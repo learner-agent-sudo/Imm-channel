@@ -27,5 +27,15 @@ Canadian immigration pathway planner. See README.md for architecture.
   EMPP, CUAET notices) live in `lib/special-programs.ts` and follow the same
   sourcing rules as everything else. Time-limited policies must carry their
   expiry in `lib/rules/parameters.ts` (see `hkPathway.policyExpiry`).
-- The sandbox blocks canada.ca — `lib/draws.ts` and the monitor fall back to
-  snapshots locally; live fetches only work in production/CI.
+- **Static export on GitHub Pages:** `next.config.ts` sets `output: "export"`,
+  so server-only features are unavailable — route handlers that read the
+  request, ISR/`revalidate`, cookies, server actions, redirects/rewrites. The
+  site is served under `/<repo>/` (`PAGES_BASE_PATH` in CI): internal links
+  must use `next/link`, never a raw `<a href="/...">`.
+- **Draw data** lives in `data/ee-draws.json`, rewritten daily by
+  `.github/workflows/site.yml` (`scripts/policy-monitor.mjs --update`). Never
+  edit it by hand, and never assert its live values in tests — use
+  `lib/__tests__/fixtures/draws.ts`, or a routine IRCC draw will break CI and
+  block deploys.
+- The sandbox blocks canada.ca, so `npm run monitor` reports feed errors
+  locally; the refresh only works in GitHub Actions.

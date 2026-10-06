@@ -6,11 +6,8 @@ export const metadata: Metadata = {
   title: "IRCC policy updates — Imm Channel",
 };
 
-// Re-render periodically so live draw data stays fresh in production.
-export const revalidate = 21600;
-
-export default async function UpdatesPage() {
-  const draws = await getDraws();
+export default function UpdatesPage() {
+  const draws = getDraws();
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
@@ -24,14 +21,8 @@ export default async function UpdatesPage() {
       <section className="mt-10">
         <div className="flex items-end justify-between">
           <h2 className="text-xl font-bold">Recent Express Entry draws</h2>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              draws.source === "live"
-                ? "bg-green-100 text-green-800"
-                : "bg-amber-100 text-amber-800"
-            }`}
-          >
-            {draws.source === "live" ? "Live from IRCC" : `Snapshot · ${draws.asOf}`}
+          <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+            Checked daily · updated {draws.asOf}
           </span>
         </div>
         <div className="mt-4 overflow-hidden rounded-xl border border-slate-200">

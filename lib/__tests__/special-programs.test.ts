@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildSpecialPrograms } from "@/lib/special-programs";
 import { buildPlannerResult } from "@/lib/roadmap";
-import { getSnapshotDraws } from "@/lib/draws";
+import { fixtureDraws } from "./fixtures/draws";
 import type { Profile } from "@/lib/types";
 
 const base: Profile = {
@@ -50,7 +50,7 @@ describe("buildSpecialPrograms — Hong Kong pathway", () => {
     // CLB 6 fails FSW's CLB 7 floor, but passes the HK pathway's CLB 5.
     const result = buildPlannerResult(
       { ...base, citizenship: "hong-kong", inCanadaStatus: "worker", canadianWorkYears: 1 },
-      getSnapshotDraws(),
+      fixtureDraws,
     );
     expect(result.pathways[0].id).toBe("hk-stream-b");
     expect(result.programs.find((p) => p.programId === "fsw")!.eligible).toBe(false);
@@ -73,7 +73,7 @@ describe("buildSpecialPrograms — Hong Kong pathway", () => {
   });
 
   it("the HK study pathway replaces the generic study pathway in results", () => {
-    const result = buildPlannerResult({ ...base, citizenship: "hong-kong" }, getSnapshotDraws());
+    const result = buildPlannerResult({ ...base, citizenship: "hong-kong" }, fixtureDraws);
     expect(result.pathways.some((p) => p.id === "hk-stream-a")).toBe(true);
     expect(result.pathways.some((p) => p.id === "study")).toBe(false);
   });

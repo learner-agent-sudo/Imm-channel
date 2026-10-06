@@ -2,6 +2,8 @@
 
 **A personalized, continuously-updated roadmap from "I want to move to Canada" to Canadian citizenship — with minimal personal data.**
 
+**Live site:** https://learner-agent-sudo.github.io/Imm-channel/
+
 ## Why this exists when IRCC has a wizard
 
 IRCC's [Come to Canada](https://www.canada.ca/en/immigration-refugees-citizenship/services/come-canada-tool.html) tool answers one question: *are you eligible for a program today?* Most people aren't — yet. Imm Channel answers the question people actually have:
@@ -24,8 +26,8 @@ IRCC's [Come to Canada](https://www.canada.ca/en/immigration-refugees-citizenshi
 - **Special measures:** the Hong Kong public policy (Stream A and Stream B — no points grid, CLB 5) as fully ranked pathways, plus status notices for CUAET (Ukraine), Afghan programs, and the EMPP for people with refugee/displaced status. One optional citizenship question powers these; "prefer not to say" is the default.
 - **Languages:** English, French, Traditional Chinese, Simplified Chinese. The questionnaire, navigation, and result labels are fully translated (`lib/i18n/`); engine-generated plan prose is English-first with a visible note in other locales.
 - **Guides:** step-level "rabbit holes" — `/guides/study-permit` and `/guides/express-entry` — linked from the roadmap's steps and the "Your next move" panel.
-- **Live data:** Express Entry draw cutoffs from IRCC's published JSON (with a bundled snapshot fallback when the feed is unreachable).
-- **Policy watch (hybrid):** `scripts/policy-monitor.mjs` runs on a schedule via GitHub Actions, diffs IRCC's news feed and draw rounds against `data/monitor-state.json`, and opens a `policy-monitor` issue for human review. Rules are only changed by a human after verifying the official source.
+- **Draw data:** Express Entry cutoffs from IRCC's published rounds JSON, refreshed daily into `data/ee-draws.json` and republished automatically — never more than about a day behind IRCC.
+- **Policy watch (hybrid):** `scripts/policy-monitor.mjs` runs daily via GitHub Actions, diffs IRCC's news feed and draw rounds against `data/monitor-state.json`, and posts anything new to the `policy-monitor` review issue. Rules are only changed by a human after verifying the official source.
 
 ## Architecture
 
@@ -33,48 +35,71 @@ IRCC's [Come to Canada](https://www.canada.ca/en/immigration-refugees-citizenshi
 app/
   page.tsx              Landing: value proposition vs IRCC's tool
   plan/page.tsx         Questionnaire wizard → ranked roadmap (client-side)
-  updates/page.tsx      Recent draws (live/snapshot) + curated policy-change feed
+  updates/page.tsx      Recent draws + curated policy-change feed
   methodology/page.tsx  Data sources, lastVerified dates, limitations
-  api/ee-draws/route.ts Cached proxy for IRCC's rounds JSON
+  guides/               Localized step-by-step guides (study permit, Express Entry)
+  api/ee-draws.json/    Static JSON copy of the draw data (built at deploy)
 components/             Wizard, results (pathway cards, timelines, boosters)
 lib/
   crs.ts                Full CRS calculator (unit-tested golden profiles)
   fsw.ts                FSW 67-point selection grid
   eligibility.ts        CEC / FSW / FST structured requirement checks
   roadmap.ts            Pathway generator: steps, timelines, costs, citizenship ETA
+  special-programs.ts   Nationality/status measures (Hong Kong, IEC, CUSMA, EMPP…)
   language.ts           IELTS / CELPIP / PTE Core → CLB conversion
-  draws.ts              Live IRCC draw data with snapshot fallback
+  draws.ts              Reads data/ee-draws.json; maps draw names to categories
+  i18n/                 UI strings in four languages
   rules/parameters.ts   Versioned policy parameters + sources + lastVerified
 data/
+  ee-draws.json         Recent Express Entry rounds — rewritten by the daily refresh
   policy-updates.json   Human-curated change feed shown on /updates
-  ee-draws-snapshot.json  Offline fallback for draw data
   monitor-state.json    Last seen draw number / news date for the monitor
-scripts/policy-monitor.mjs    Feed watcher (no dependencies, Node 22+)
-.github/workflows/policy-monitor.yml  Scheduled check → review issue
+scripts/
+  policy-monitor.mjs    Daily feed check: refreshes draw data, reports news (Node 22+, no deps)
+  ircc-draws.mjs        Defensive parser for IRCC's rounds feed (unit-tested)
+.github/workflows/site.yml  Test → build → deploy to GitHub Pages; daily data refresh
 ```
 
 ### The hybrid policy-update model
 
-1. **Automated detection** — the workflow polls IRCC's Express Entry rounds JSON and news Atom feed twice a week.
-2. **Human verification** — changes open/append to a GitHub issue; a maintainer checks the official text.
+1. **Automated detection** — the daily workflow polls IRCC's Express Entry rounds JSON and news Atom feed.
+2. **Human verification** — new announcements are posted to a GitHub issue; a maintainer checks the official text.
 3. **Versioned application** — rule edits land in `lib/rules/parameters.ts` (bump `RULES_VERSION` and `lastVerified`) plus a plain-language entry in `data/policy-updates.json`.
-4. **Exception:** draw cutoffs need no review — they're served straight from IRCC's feed at runtime.
+4. **Exception:** draw cutoffs need no review — the workflow commits IRCC's published rounds to `data/ee-draws.json` and redeploys.
 
 This keeps the site current without ever letting an unreviewed scrape change eligibility logic — wrong immigration advice is worse than stale advice with a visible `lastVerified` date.
+
+## Hosting & deployment
+
+The site is a **static export** (`output: "export"` in `next.config.ts`) hosted free on **GitHub Pages**. There is no server: the planner runs in the browser and the draw data is built into the pages. One workflow, `.github/workflows/site.yml`, does everything:
+
+| Trigger | What happens |
+|---|---|
+| Push to the default branch | Test → build → deploy |
+| Push to any other branch | Test → build (CI only) |
+| Daily at 22:41 UTC | Refresh IRCC draws + news → commit changed data → redeploy only if draws changed → post news to the review issue |
+| Manual ("Run workflow") | Like the daily run, but always redeploys |
+
+The site lives under `/<repo>/`, so CI builds with `PAGES_BASE_PATH=/<repo>`. Internal links must go through `next/link`, which adds that prefix automatically.
+
+**One-time setup:** Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+
+**Staying alive:** GitHub disables scheduled workflows after 60 days without repository activity (this repo's first monitor stopped that way in August 2026). The workflow re-enables itself on every daily run, and its data commits count as activity too.
 
 ## Develop
 
 ```bash
 npm install
 npm run dev        # http://localhost:3000
-npm test           # CRS / FSW / language-conversion golden tests
-npm run build      # production build
-npm run monitor    # run the IRCC feed check locally
+npm test           # golden scoring tests, roadmap/special-program tests, feed parser
+npm run build      # static export into out/
+npx serve out      # preview the exported site locally
+npm run monitor    # run the IRCC feed check locally (report only)
 ```
 
 ## Deliberate non-goals (for now)
 
-- No accounts, emails, or stored profiles. The natural phase 2 — "alert me when a policy change affects *my* plan" — requires opt-in email + a stored anonymous profile (the Supabase schema slot in the stack is reserved for exactly this).
+- No accounts, emails, or stored profiles. The natural phase 2 — "alert me when a policy change affects *my* plan" — requires opt-in email + a stored anonymous profile, which means adding a small backend (e.g. a Cloudflare Worker or Supabase) alongside the static site.
 - No Quebec economic programs, family sponsorship, refugee/humanitarian streams.
 - No representation or advice. Prominent disclaimers everywhere; we link to the official source at every step.
 

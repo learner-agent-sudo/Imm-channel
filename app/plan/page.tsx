@@ -6,7 +6,6 @@ export const metadata: Metadata = {
   title: "Plan my pathway — Imm Channel",
 };
 
-export default async function PlanPage() {
-  const draws = await getDraws();
-  return <Planner draws={draws} />;
+export default function PlanPage() {
+  return <Planner draws={getDraws()} />;
 }

@@ -1,71 +1,18 @@
 /**
- * Express Entry draw data: live from IRCC's published JSON when reachable,
- * with the bundled snapshot as fallback. Server-side only.
+ * Express Entry draw data, read from data/ee-draws.json.
+ *
+ * The site is a static export (GitHub Pages), so nothing is fetched at build
+ * or request time. A daily GitHub Action runs scripts/policy-monitor.mjs
+ * --update, which pulls IRCC's published rounds, rewrites the data file when
+ * draws change, commits it and redeploys — the site is never more than about
+ * a day behind IRCC.
  */
 
 import type { DrawRound, DrawsData } from "@/lib/types";
-import snapshot from "@/data/ee-draws-snapshot.json";
+import data from "@/data/ee-draws.json";
 
-const IRCC_ROUNDS_URL =
-  "https://www.canada.ca/content/dam/ircc/documents/json/ee_rounds_123_en.json";
-
-interface IrccRound {
-  drawNumber?: string;
-  drawDate?: string;
-  drawName?: string;
-  drawSize?: string;
-  drawCRS?: string;
-}
-
-function parseIrccRounds(raw: unknown): DrawRound[] {
-  const rounds = (raw as { rounds?: IrccRound[] })?.rounds;
-  if (!Array.isArray(rounds)) throw new Error("unexpected IRCC rounds format");
-  return rounds
-    .slice(0, 20)
-    .map((r) => ({
-      drawNumber: parseInt(String(r.drawNumber ?? "0").replace(/\D/g, ""), 10),
-      date: String(r.drawDate ?? ""),
-      stream: String(r.drawName ?? "Unknown"),
-      invitations: parseInt(String(r.drawSize ?? "0").replace(/\D/g, ""), 10) || 0,
-      cutoff: parseInt(String(r.drawCRS ?? "0").replace(/\D/g, ""), 10) || 0,
-    }))
-    .filter((r) => r.cutoff > 0 && r.date !== "");
-}
-
-export function getSnapshotDraws(): DrawsData {
-  return {
-    source: "snapshot",
-    asOf: snapshot.asOf,
-    rounds: snapshot.rounds as DrawRound[],
-  };
-}
-
-export async function getDraws(): Promise<DrawsData> {
-  try {
-    const res = await fetch(IRCC_ROUNDS_URL, {
-      next: { revalidate: 21600 }, // refresh at most every 6 hours
-      headers: {
-        accept: "application/json",
-        "user-agent":
-          "Mozilla/5.0 (compatible; ImmChannel/1.0; +https://github.com/learner-agent-sudo/Imm-channel)",
-      },
-      // canada.ca's bot protection can hold connections open indefinitely
-      // from datacenter IPs; without this bound, build-time prerendering of
-      // /plan and /updates exceeds the 60s static-generation limit.
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) throw new Error(`IRCC feed returned ${res.status}`);
-    const rounds = parseIrccRounds(await res.json());
-    if (rounds.length === 0) throw new Error("IRCC feed returned no rounds");
-    return {
-      source: "live",
-      asOf: new Date().toISOString().slice(0, 10),
-      rounds,
-    };
-  } catch {
-    // Network blocked, feed hung, or shape changed — use the bundled snapshot.
-    return getSnapshotDraws();
-  }
+export function getDraws(): DrawsData {
+  return { asOf: data.asOf, rounds: data.rounds as DrawRound[] };
 }
 
 /** Normalized stream keys used to match draws to a user's situation. */

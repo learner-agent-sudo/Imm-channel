@@ -268,8 +268,9 @@ export interface DrawRound {
 }
 
 export interface DrawsData {
-  source: "live" | "snapshot";
+  /** Date the daily refresh last found new rounds in IRCC's feed. */
   asOf: string;
+  /** Newest first. */
   rounds: DrawRound[];
 }
 
