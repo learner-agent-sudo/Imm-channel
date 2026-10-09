@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { MIN_VALID_ROUNDS, normalizeRounds, serializeDrawsFile } from "../ircc-draws.mjs";
+import {
+  MAX_DRAW_JUMP,
+  MIN_VALID_ROUNDS,
+  cleanStream,
+  isPlausibleDrawDate,
+  nextDrawHighWater,
+  normalizeRounds,
+  parseCount,
+  serializeDrawsFile,
+} from "../ircc-draws.mjs";
 
 /** A round in the shape of IRCC's ee_rounds_123_en.json: every value a string. */
 function rawRound(n: number, overrides: Record<string, string> = {}) {
@@ -57,6 +66,102 @@ describe("normalizeRounds", () => {
   it("rejects a feed without a rounds array", () => {
     expect(() => normalizeRounds({ draws: [] })).toThrow(/rounds/);
     expect(() => normalizeRounds(null)).toThrow(/rounds/);
+  });
+
+  it("skips rows with garbled or out-of-range numbers instead of mangling them", () => {
+    const rows = [
+      ...validRows(MIN_VALID_ROUNDS),
+      rawRound(460, { drawNumber: "418,419" }), // two numbers run together
+      rawRound(461, { drawSize: "5,000,000,000" }), // impossible round size
+      rawRound(462, { drawCRS: "4e2" }),
+      rawRound(463, { drawDate: "2099-01-01" }), // in the future
+      rawRound(464, { drawDate: "2026-02-30" }), // not a real date
+    ];
+    const numbers = normalizeRounds(feed(rows)).map((r) => r.drawNumber);
+    expect(Math.max(...numbers)).toBe(400 + MIN_VALID_ROUNDS - 1);
+  });
+
+  it("refuses to publish a stream name that isn't plain text", () => {
+    for (const drawName of [
+      "Provincial Nominee Program | x |",
+      "Pay the fee at https://evil.example",
+      "Canadian Experience Class @octocat",
+      "x".repeat(121),
+    ]) {
+      const rows = [...validRows(MIN_VALID_ROUNDS), rawRound(470, { drawName })];
+      expect(() => normalizeRounds(feed(rows)), drawName).toThrow(/stream name/);
+    }
+  });
+
+  it("only checks the names of rounds it keeps", () => {
+    const rows = [rawRound(1, { drawName: "Old <odd> name" }), ...validRows(MIN_VALID_ROUNDS)];
+    expect(() => normalizeRounds(feed(rows), MIN_VALID_ROUNDS)).not.toThrow();
+  });
+});
+
+describe("parseCount", () => {
+  it("accepts plain and comma-grouped whole numbers within the limit", () => {
+    expect(parseCount("5,000", 50000)).toBe(5000);
+    expect(parseCount(" 418 ", 9999)).toBe(418);
+  });
+
+  it("rejects everything else", () => {
+    for (const bad of ["418,419", "1e9", "-7", "4.5", "", "N/A", "12,34", "9".repeat(400)]) {
+      expect(parseCount(bad, 9999), bad).toBeNaN();
+    }
+  });
+});
+
+describe("isPlausibleDrawDate", () => {
+  const now = Date.parse("2026-10-01T00:00:00Z");
+  it("accepts real dates from the Express Entry era up to today", () => {
+    expect(isPlausibleDrawDate("2026-09-30", now)).toBe(true);
+    expect(isPlausibleDrawDate("2015-01-31", now)).toBe(true);
+  });
+  it("rejects impossible, pre-2015 and future dates", () => {
+    for (const bad of ["9999-99-99", "2026-02-30", "2014-12-31", "2099-01-01", "July 2, 2026"]) {
+      expect(isPlausibleDrawDate(bad, now), bad).toBe(false);
+    }
+  });
+});
+
+describe("cleanStream", () => {
+  it("keeps IRCC's real names as they are", () => {
+    for (const name of [
+      "Canadian Experience Class",
+      "French-Language proficiency 2026-Version 2",
+      "Senior managers with Canadian Work Experience, 2026-Version 1",
+      "Agriculture and agri-food occupations (Version 1)",
+    ]) {
+      expect(cleanStream(name)).toBe(name);
+    }
+  });
+  it("normalizes whitespace and falls back to Unknown", () => {
+    expect(cleanStream("  Trades   Occupations ")).toBe("Trades Occupations");
+    expect(cleanStream("")).toBe("Unknown");
+    expect(cleanStream(undefined)).toBe("Unknown");
+  });
+  it("rejects markup, bidi tricks and non-strings without echoing them", () => {
+    for (const bad of ["<b>x</b>", "abc\u202Edef", "www.evil.example", { toString: () => "x" }]) {
+      if (typeof bad !== "string") {
+        expect(cleanStream(bad)).toBe("Unknown");
+        continue;
+      }
+      expect(() => cleanStream(bad), bad).toThrow(/^unexpected stream name in IRCC feed/);
+    }
+  });
+});
+
+describe("nextDrawHighWater", () => {
+  const rounds = (n: number) => [{ drawNumber: n }];
+  it("advances to the newest draw and never moves backwards", () => {
+    expect(nextDrawHighWater(418, rounds(430))).toBe(430);
+    expect(nextDrawHighWater(430, rounds(418))).toBe(430);
+    expect(nextDrawHighWater(0, rounds(430))).toBe(430);
+  });
+  it("refuses an implausible jump that would hide every real draw", () => {
+    expect(() => nextDrawHighWater(418, rounds(418 + MAX_DRAW_JUMP + 1))).toThrow(/jumped/);
+    expect(nextDrawHighWater(418, rounds(418 + MAX_DRAW_JUMP))).toBe(418 + MAX_DRAW_JUMP);
   });
 });
 

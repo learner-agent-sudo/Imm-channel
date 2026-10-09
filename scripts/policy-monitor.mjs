@@ -25,7 +25,21 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { IRCC_ROUNDS_URL, normalizeRounds, serializeDrawsFile } from "./ircc-draws.mjs";
+import {
+  IRCC_ROUNDS_URL,
+  nextDrawHighWater,
+  normalizeRounds,
+  serializeDrawsFile,
+} from "./ircc-draws.mjs";
+import {
+  assertFeedUrl,
+  isCurrentDate,
+  mdLink,
+  mdText,
+  nextNewsHighWater,
+  parseAtomEntries,
+  readCapped,
+} from "./feed-safety.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const STATE_PATH = join(ROOT, "data", "monitor-state.json");
@@ -36,6 +50,12 @@ const NEWS_URL =
   "https://api.io.canada.ca/io-server/gc/news/en/v2?dept=departmentofcitizenshipandimmigration&sort=publishedDate&orderBy=desc&pick=20&format=atom&atomtitle=IRCC";
 
 const UPDATE = process.argv.includes("--update");
+
+// Feed responses are untrusted input (see scripts/feed-safety.mjs): they must
+// come over https from these hosts, after any redirects, and stay small.
+const FEED_HOSTS = ["www.canada.ca", "api.io.canada.ca"];
+const MAX_ROUNDS_BYTES = 10_000_000; // the full rounds history; well under 1 MB in 2026
+const MAX_NEWS_BYTES = 2_000_000; // 20 entries
 
 // canada.ca is intermittently slow from CI runners (several June 2026 runs
 // timed out), so every fetch is bounded and retried with backoff.
@@ -50,7 +70,7 @@ function readJson(path, fallback) {
   }
 }
 
-async function fetchTextWithRetry(url, accept) {
+async function fetchTextWithRetry(url, accept, maxBytes) {
   let lastError;
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
     if (attempt > 0) {
@@ -62,8 +82,9 @@ async function fetchTextWithRetry(url, accept) {
         headers: { accept },
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
+      assertFeedUrl(res.url, FEED_HOSTS);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.text();
+      return await readCapped(res, maxBytes);
     } catch (err) {
       lastError = err;
     }
@@ -72,8 +93,12 @@ async function fetchTextWithRetry(url, accept) {
 }
 
 async function checkDraws(state, report) {
-  const raw = JSON.parse(await fetchTextWithRetry(IRCC_ROUNDS_URL, "application/json"));
+  const raw = JSON.parse(
+    await fetchTextWithRetry(IRCC_ROUNDS_URL, "application/json", MAX_ROUNDS_BYTES),
+  );
   const rounds = normalizeRounds(raw);
+  // Checked before anything is written, so a garbled feed changes nothing.
+  const lastDrawNumber = nextDrawHighWater(state.lastDrawNumber, rounds);
   const current = readJson(DRAWS_PATH, { rounds: [] });
 
   const fresh = rounds.filter((r) => r.drawNumber > state.lastDrawNumber);
@@ -83,7 +108,7 @@ async function checkDraws(state, report) {
     report.push("|---|------|--------|-------------|------------|");
     for (const r of fresh.slice(0, 15)) {
       report.push(
-        `| ${r.drawNumber} | ${r.date} | ${r.stream} | ${r.invitations.toLocaleString("en-CA")} | **${r.cutoff}** |`,
+        `| ${r.drawNumber} | ${r.date} | ${mdText(r.stream)} | ${r.invitations.toLocaleString("en-CA")} | **${r.cutoff}** |`,
       );
     }
     if (fresh.length > 15) report.push(`\n_…and ${fresh.length - 15} older draw(s) not shown._`);
@@ -96,7 +121,7 @@ async function checkDraws(state, report) {
     const unseen = [...new Set(fresh.map((r) => r.stream))].filter((s) => !known.has(s));
     if (unseen.length > 0) {
       report.push(
-        `→ New stream name(s): ${unseen.map((s) => `"${s}"`).join(", ")} — ` +
+        `→ New stream name(s): ${unseen.map((s) => `"${mdText(s)}"`).join(", ")} — ` +
           "check whether `streamKey()` in `lib/draws.ts` should map them to a category.",
       );
     }
@@ -110,35 +135,26 @@ async function checkDraws(state, report) {
     console.error(`Draw data updated: ${DRAWS_PATH}`);
   }
 
-  return {
-    lastDrawNumber: Math.max(state.lastDrawNumber, rounds[0].drawNumber),
-    dataChanged: UPDATE && dataChanged,
-  };
+  return { lastDrawNumber, dataChanged: UPDATE && dataChanged };
 }
 
-async function checkNews(state, report) {
-  const xml = await fetchTextWithRetry(NEWS_URL, "application/atom+xml");
-
-  // Minimal Atom parsing — defensive, dependency-free.
-  const entries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map((m) => {
-    const block = m[1];
-    const pick = (tag) => {
-      const match = block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`));
-      return match ? match[1].replace(/<!\[CDATA\[|\]\]>/g, "").trim() : "";
-    };
-    const link = block.match(/<link[^>]*href="([^"]+)"/);
-    return {
-      title: pick("title"),
-      updated: pick("updated") || pick("published"),
-      url: link ? link[1] : "",
-    };
-  });
+async function checkNews(state, report, errors) {
+  const xml = await fetchTextWithRetry(NEWS_URL, "application/atom+xml", MAX_NEWS_BYTES);
+  const entries = parseAtomEntries(xml);
+  // An error page or empty body must not look like "no news".
+  if (!xml.includes("<feed") || entries.length === 0) {
+    throw new Error("news feed returned no entries");
+  }
 
   const since = new Date(state.lastNewsDate).getTime();
+  const future = entries.filter((e) => e.updated && !isCurrentDate(e.updated));
+  if (future.length > 0) {
+    errors.push(`${future.length} announcement(s) dated in the future were ignored`);
+  }
   const seenTitles = new Set();
   const fresh = entries.filter((e) => {
     // canada.ca sometimes lists the same release twice under different URLs.
-    if (!e.updated || seenTitles.has(e.title)) return false;
+    if (!isCurrentDate(e.updated) || seenTitles.has(e.title)) return false;
     seenTitles.add(e.title);
     return new Date(e.updated).getTime() > since;
   });
@@ -146,7 +162,7 @@ async function checkNews(state, report) {
   if (fresh.length > 0) {
     report.push(`## 📰 ${fresh.length} new IRCC announcement(s)`);
     for (const e of fresh.slice(0, 15)) {
-      report.push(`- **${e.updated.slice(0, 10)}** — [${e.title}](${e.url})`);
+      report.push(`- **${mdText(e.updated.slice(0, 10))}** — ${mdLink(e.title, e.url)}`);
     }
     if (fresh.length > 15) report.push(`- _…and ${fresh.length - 15} more not shown._`);
     report.push("");
@@ -154,14 +170,15 @@ async function checkNews(state, report) {
       "→ For each announcement: does it change eligibility rules, fees, " +
         "funds thresholds or categories? If yes, update `lib/rules/parameters.ts` " +
         "(bump `lastVerified` + `RULES_VERSION`) and add an entry to " +
-        "`data/policy-updates.json`.",
+        "`data/policy-updates.json`. Only links to canada.ca / gc.ca are kept.",
     );
     report.push("");
   }
 
-  // Never move the high-water mark backwards (e.g. on a truncated feed).
-  const newest = Math.max(since, ...entries.map((e) => new Date(e.updated).getTime() || 0));
-  return newest > since ? new Date(newest).toISOString() : state.lastNewsDate;
+  return nextNewsHighWater(
+    state.lastNewsDate,
+    entries.map((e) => e.updated),
+  );
 }
 
 const state = readJson(STATE_PATH, {
@@ -181,7 +198,7 @@ try {
   errors.push(`Draws feed check failed: ${err.message}`);
 }
 try {
-  nextState.lastNewsDate = await checkNews(state, report);
+  nextState.lastNewsDate = await checkNews(state, report, errors);
 } catch (err) {
   errors.push(`News feed check failed: ${err.message}`);
 }
@@ -196,7 +213,8 @@ if (changed) {
 }
 if (errors.length > 0) {
   console.log("\n## ⚠️ Monitor errors (feed unreachable or format changed)\n");
-  for (const e of errors) console.log(`- ${e}`);
+  // Error text can quote feed content, so it's escaped like everything else.
+  for (const e of errors) console.log(`- ${mdText(e, 500)}`);
 }
 
 const stateChanged =

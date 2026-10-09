@@ -157,6 +157,7 @@ function NextMove({ pathway }: { pathway: PathwayPlan }) {
                 {s.guide && (
                   <Link
                     href={s.guide}
+                    prefetch={false} // which guide depends on the answers; fetch only on click
                     className="mt-0.5 inline-block text-xs font-semibold text-maple underline underline-offset-2"
                   >
                     {t("res.guide")}
@@ -314,6 +315,7 @@ function PathwayCard({ pathway, index }: { pathway: PathwayPlan; index: number }
                   {s.guide && (
                     <Link
                       href={s.guide}
+                      prefetch={false} // which guide depends on the answers; fetch only on click
                       className="inline-block text-xs font-semibold text-maple underline underline-offset-2"
                     >
                       {t("res.guide")}

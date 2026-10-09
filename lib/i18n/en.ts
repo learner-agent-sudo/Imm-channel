@@ -15,8 +15,11 @@ export const en = {
   "footer.disclaimer":
     "Imm Channel is an independent informational tool. It is not affiliated with IRCC or the Government of Canada, and nothing here is legal advice. Program rules change frequently — always confirm on canada.ca, and consider a licensed representative (RCIC or immigration lawyer) for advice about your specific situation.",
   "footer.privacy":
-    "Privacy: the planner runs entirely in your browser. Your answers are never uploaded, stored, or shared.",
+    "Privacy: the planner runs entirely in your browser. Your answers are never uploaded, stored, or shared. If you use your browser's translate feature, your browser may send the page's text, including your results, to its translation service.",
   "lang.label": "Language",
+  "notFound.title": "Page not found",
+  "notFound.body": "This page doesn't exist or has moved.",
+  "notFound.home": "Back to the home page",
 
   "home.kicker": "Canada immigration, planned end-to-end",
   "home.h1": "Your personal roadmap from where you are now to Canadian citizenship",
@@ -27,7 +30,7 @@ export const en = {
   "home.free": "Free · anonymous · nothing leaves your browser",
   "home.step1.title": "Answer 5 minutes of anonymous questions",
   "home.step1.body":
-    "Age, education, language, work experience, funds. No name, no email, no documents — everything stays in your browser.",
+    "Age, education, language, work experience, funds — plus optional questions about citizenship and status. No name, no email, no documents — everything stays in your browser.",
   "home.step2.title": "Get ranked pathways, not a yes/no",
   "home.step2.body":
     "Express Entry, PNP, study-to-PR, work-permit-first, or special measures like the Hong Kong pathway — each with a step-by-step timeline, costs, and your score versus recent draw cutoffs.",
@@ -186,7 +189,7 @@ export const en = {
   "iec.no": "No / I'm over the age cap",
   "iec.unsure": "Not sure",
   "wiz.refugee": "I have recognized refugee or displaced-person status",
-  "wiz.refugee.hint": "UNHCR or similar. Unlocks the EMPP and resettlement routes.",
+  "wiz.refugee.hint": "UNHCR or similar. Unlocks the EMPP and resettlement routes. Optional — your answer stays in your browser like everything else.",
 
   "res.crsTitle": "Your Comprehensive Ranking System score",
   "res.fswGrid": "FSW selection grid:",

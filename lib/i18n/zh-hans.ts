@@ -7,8 +7,11 @@ export const zhHans = {
   "footer.title": "独立工具 — 并非加拿大政府网站",
   "footer.disclaimer":
     "Imm Channel 是独立的信息工具，与 IRCC 或加拿大政府没有关联，内容也不构成法律意见。移民政策经常变动 — 请务必以 canada.ca 为准，并就个人情况考虑咨询持牌顾问（RCIC 或移民律师）。",
-  "footer.privacy": "隐私：规划工具完全在您的浏览器内运行。您的答案不会被上传、存储或分享。",
+  "footer.privacy": "隐私：规划工具完全在您的浏览器内运行。您的答案不会被上传、存储或分享。如使用浏览器的翻译功能，浏览器可能会把页面文字（包括您的结果）发送至其翻译服务。",
   "lang.label": "语言",
+  "notFound.title": "找不到页面",
+  "notFound.body": "此页面不存在或已移动。",
+  "notFound.home": "返回首页",
 
   "home.kicker": "加拿大移民，从头到尾完整规划",
   "home.h1": "从您现在的处境直到取得加拿大公民身份的个人路线图",
@@ -18,7 +21,7 @@ export const zhHans = {
   "home.ctaUpdates": "IRCC 最新变动",
   "home.free": "免费 · 匿名 · 数据不会离开您的浏览器",
   "home.step1.title": "用 5 分钟回答匿名问题",
-  "home.step1.body": "年龄、学历、语言、工作经验、资金。不需姓名、邮箱或文件 — 一切只留在您的浏览器。",
+  "home.step1.body": "年龄、学历、语言、工作经验、资金，另有关于国籍及身份的选填问题。不需姓名、邮箱或文件 — 一切只留在您的浏览器。",
   "home.step2.title": "得到排序的途径，而非简单的是/否",
   "home.step2.body":
     "快速通道、省提名、留学转永居、先工签，或香港救生艇等特别措施 — 每条途径都附分步时间表、费用，以及您的分数与近期分数线的对比。",
@@ -170,7 +173,7 @@ export const zhHans = {
   "iec.no": "否／已超过年龄上限",
   "iec.unsure": "不确定",
   "wiz.refugee": "我具有获承认的难民或流离失所者身份",
-  "wiz.refugee.hint": "联合国难民署或同类机构。可解锁 EMPP 及安置途径。",
+  "wiz.refugee.hint": "联合国难民署或同类机构。可解锁 EMPP 及安置途径。选填 — 此答案与其他信息一样只留在您的浏览器。",
 
   "res.crsTitle": "您的综合排名系统（CRS）分数",
   "res.fswGrid": "FSW 评分表：",

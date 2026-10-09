@@ -17,7 +17,7 @@ IRCC's [Come to Canada](https://www.canada.ca/en/immigration-refugees-citizenshi
 | You re-read the rules after every announcement | A policy monitor watches IRCC news + draws; rules are versioned with `lastVerified` dates |
 | No score strategy | Quantified boosters recomputed from *your* profile ("+62 if you reach CLB 10") |
 
-**Privacy:** the questionnaire collects no identifiers — age, education, language levels, work experience, funds band. Everything runs client-side; answers never leave the browser. There are no accounts and no analytics on profile data.
+**Privacy:** the questionnaire collects no identifiers — age, education, language levels, work experience, funds band, plus optional citizenship and refugee-status questions that unlock special programs. Everything runs client-side; answers never leave the browser. There are no accounts, cookies, analytics or third-party scripts, and a strict Content-Security-Policy stops pages from contacting any other site (see [Security](#security)).
 
 ## MVP scope
 
@@ -57,7 +57,10 @@ data/
 scripts/
   policy-monitor.mjs    Daily feed check: refreshes draw data, reports news (Node 22+, no deps)
   ircc-draws.mjs        Defensive parser for IRCC's rounds feed (unit-tested)
+  feed-safety.mjs       Untrusted-feed helpers: size/host checks, Atom parser, markdown escaping
+  csp.mjs               Post-build: per-page Content-Security-Policy with hashed inline scripts
 .github/workflows/site.yml  Test → build → deploy to GitHub Pages; daily data refresh
+.github/dependabot.yml      Weekly dependency/action updates (7-day cooldown)
 ```
 
 ### The hybrid policy-update model
@@ -85,6 +88,17 @@ The site lives under `/<repo>/`, so CI builds with `PAGES_BASE_PATH=/<repo>`. In
 **One-time setup:** Settings → Pages → Build and deployment → Source: **GitHub Actions**.
 
 **Staying alive:** GitHub disables scheduled workflows after 60 days without repository activity (this repo's first monitor stopped that way in August 2026). The workflow re-enables itself on every daily run, and its data commits count as activity too.
+
+## Security
+
+The threat model is small — no server, no accounts, no stored data — so the protections focus on keeping visitors' answers in their browser and keeping the published site and data honest. Details and how to report a problem: [SECURITY.md](SECURITY.md).
+
+- **Content-Security-Policy on every page.** GitHub Pages can't send security headers, so `scripts/csp.mjs` (run by `npm run build`) adds a `<meta>` policy to each exported page: only the site's own scripts may run, each inline script is pinned by its SHA-256 hash, and nothing may load from or send data to another origin. `form-action 'none'` and `base-uri 'none'` close the remaining injection tricks. The build fails if any page isn't fully covered.
+- **No answer-dependent network traffic.** Result links whose target depends on your answers don't prefetch; the referrer policy is `no-referrer`.
+- **Untrusted feeds.** The monitor only accepts https responses from canada.ca hosts, caps their size, parses Atom in linear time, validates every draw field against hard bounds and a plain-text allowlist, and refuses implausible jumps in its high-water marks (which would otherwise silence future reports). Everything it posts to GitHub issues is escaped — no links outside canada.ca/gc.ca, no @mentions, no images or HTML.
+- **Least-privilege CI.** `site.yml` is split so the only job that installs and runs npm packages has a read-only token; the job that commits data runs no npm code and verifies the data's checksum from the refresh job. Install scripts are disabled (`.npmrc`, `npm ci --ignore-scripts`), npm registry signatures are verified, actions are pinned to commit SHAs, and every job has a timeout.
+
+**Repository settings the owner should keep on** (Settings → …): Code security → Dependabot alerts + security updates, secret scanning + push protection, private vulnerability reporting, CodeQL default setup; Rules → a ruleset on the default branch blocking force-pushes and deletion; Environments → `github-pages` limited to the default branch; Actions → General → workflow permissions "Read repository contents".
 
 ## Develop
 

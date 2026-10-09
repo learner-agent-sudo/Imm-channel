@@ -18,6 +18,8 @@ export const metadata: Metadata = {
   title: "Imm Channel — your roadmap to Canadian PR and citizenship",
   description:
     "Answer a few anonymous questions and get a ranked, step-by-step pathway to Canadian permanent residence and citizenship — kept current as IRCC policy changes.",
+  // Following a link to canada.ca (or anywhere) doesn't reveal it came from here.
+  referrer: "no-referrer",
 };
 
 export default function RootLayout({

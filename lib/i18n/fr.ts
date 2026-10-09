@@ -8,8 +8,11 @@ export const fr = {
   "footer.disclaimer":
     "Imm Channel est un outil d'information indépendant. Il n'est pas affilié à IRCC ni au gouvernement du Canada, et rien ici ne constitue un avis juridique. Les règles des programmes changent souvent — vérifiez toujours sur canada.ca et envisagez un représentant autorisé (CRIC ou avocat en immigration) pour votre situation.",
   "footer.privacy":
-    "Confidentialité : le planificateur fonctionne entièrement dans votre navigateur. Vos réponses ne sont jamais téléversées, stockées ou partagées.",
+    "Confidentialité : le planificateur fonctionne entièrement dans votre navigateur. Vos réponses ne sont jamais téléversées, stockées ou partagées. Si vous utilisez la fonction de traduction de votre navigateur, celui-ci peut envoyer le texte de la page, y compris vos résultats, à son service de traduction.",
   "lang.label": "Langue",
+  "notFound.title": "Page introuvable",
+  "notFound.body": "Cette page n'existe pas ou a été déplacée.",
+  "notFound.home": "Retour à l'accueil",
 
   "home.kicker": "L'immigration au Canada, planifiée de bout en bout",
   "home.h1": "Votre feuille de route personnelle, d'où vous êtes jusqu'à la citoyenneté canadienne",
@@ -20,7 +23,7 @@ export const fr = {
   "home.free": "Gratuit · anonyme · rien ne quitte votre navigateur",
   "home.step1.title": "Répondez à 5 minutes de questions anonymes",
   "home.step1.body":
-    "Âge, études, langues, expérience de travail, fonds. Pas de nom, pas de courriel, pas de documents — tout reste dans votre navigateur.",
+    "Âge, études, langues, expérience de travail, fonds — et des questions facultatives sur la citoyenneté et le statut. Pas de nom, pas de courriel, pas de documents — tout reste dans votre navigateur.",
   "home.step2.title": "Des voies classées, pas un simple oui/non",
   "home.step2.body":
     "Entrée express, PCP, études vers la RP, permis de travail d'abord, ou mesures spéciales comme la voie Hong Kong — chacune avec échéancier détaillé, coûts et votre score face aux seuils récents.",
@@ -179,7 +182,7 @@ export const fr = {
   "iec.no": "Non / au-delà de la limite d'âge",
   "iec.unsure": "Pas certain(e)",
   "wiz.refugee": "J'ai un statut reconnu de réfugié ou de personne déplacée",
-  "wiz.refugee.hint": "HCR ou similaire. Débloque l'EMPP et les voies de réinstallation.",
+  "wiz.refugee.hint": "HCR ou similaire. Débloque l'EMPP et les voies de réinstallation. Facultatif — votre réponse reste dans votre navigateur, comme tout le reste.",
 
   "res.crsTitle": "Votre score du Système de classement global (SCG)",
   "res.fswGrid": "Grille de sélection TQF :",

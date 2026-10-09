@@ -1,0 +1,26 @@
+# Dependency update PRs. Security fixes arrive as soon as an advisory is
+# published (once Dependabot security updates are enabled in Settings);
+# routine version updates wait a week after release, the window in which
+# compromised npm releases are usually caught and pulled.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]

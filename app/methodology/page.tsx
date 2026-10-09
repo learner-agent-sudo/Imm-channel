@@ -45,9 +45,28 @@ export default function MethodologyPage() {
           <strong className="text-ink">Privacy by architecture.</strong> The
           questionnaire and all scoring run in your browser. We don&apos;t ask
           for your name or email, there are no accounts, and your answers are
-          never transmitted or stored. The planner makes no network requests
-          at all — the draw statistics it compares against are built into the
-          page.
+          never transmitted or stored — including the optional citizenship
+          and refugee-status questions. Nothing the site loads depends on your
+          answers — the draw statistics it compares against are built into the
+          page — and a strict Content-Security-Policy stops the page from
+          contacting any other website. There are no cookies, analytics or
+          trackers; the only thing saved is your language choice, in your own
+          browser. The site is hosted on GitHub Pages, which, like any web
+          host, records visitors&apos; IP addresses in its server logs (see{" "}
+          <a
+            href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-maple underline underline-offset-2"
+          >
+            GitHub&apos;s privacy statement
+          </a>
+          ). One thing outside our control: if you use your browser&apos;s
+          translate feature, the browser may send the page&apos;s text,
+          including your results, to its translation service. On a shared
+          computer, close the tab when you&apos;re done; pressing Back after
+          leaving the site starts the planner over rather than showing your
+          answers.
         </p>
       </section>
 

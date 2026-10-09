@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# secrets / local tooling (the committed .npmrc holds settings only — never auth tokens)
+*.key
+*.p12
+*.pfx
+.claude/settings.local.json
+CLAUDE.local.md
+
+# CI scratch output (site.yml)
+monitor-report.md

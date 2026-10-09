@@ -5,6 +5,24 @@ import { detectLocale, translate, type DictKey, type Locale } from "@/lib/i18n";
 
 const STORAGE_KEY = "imm-locale";
 
+// Storage throws when the visitor blocks site data (e.g. Chrome's "block all
+// cookies"); the language choice then just isn't remembered.
+function readSavedLocale(): string | null {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveLocale(l: Locale) {
+  try {
+    localStorage.setItem(STORAGE_KEY, l);
+  } catch {
+    // Keep the in-memory choice for this visit.
+  }
+}
+
 const LocaleContext = createContext<{
   locale: Locale;
   setLocale: (l: Locale) => void;
@@ -19,7 +37,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     // saved/browser locale applies after mount. The async dispatch keeps the
     // initial hydration pass clean (and satisfies set-state-in-effect).
     const timer = setTimeout(() => {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = readSavedLocale();
       if (saved === "en" || saved === "fr" || saved === "zh-Hant" || saved === "zh-Hans") {
         setLocaleState(saved);
       } else if (typeof navigator !== "undefined") {
@@ -35,7 +53,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 
   const setLocale = (l: Locale) => {
     setLocaleState(l);
-    localStorage.setItem(STORAGE_KEY, l);
+    saveLocale(l);
   };
 
   return <LocaleContext.Provider value={{ locale, setLocale }}>{children}</LocaleContext.Provider>;

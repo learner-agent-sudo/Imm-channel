@@ -3,88 +3,192 @@ name: Refresh IRCC data & deploy site
 # One pipeline for the whole site (a static export hosted on GitHub Pages):
 #   push    → test + build; deploy when the push is to the default branch
 #   daily   → pull IRCC draws + news (scripts/policy-monitor.mjs --update),
-#             commit new data, redeploy only if draws changed, and post
-#             anything new to the policy-monitor review issue
+#             test + build with the new data, commit it, redeploy only if
+#             draws changed, and post anything new to the review issue
 #   manual  → like daily, but always redeploys
+#
+# Least privilege: each job gets only the access it needs, and the one job
+# that installs and runs npm packages (build) can't write anything. So a
+# compromised dependency can't push to the repo, edit issues, or deploy
+# anything except through the reviewed build output.
+#
+#   refresh    read-only   runs our dependency-free monitor on canada.ca data
+#   build      read-only   npm ci (no install scripts) → test → build
+#   deploy     pages       publishes the artifact that build uploaded
+#   publish    write       commits the refreshed data + posts the report; no npm
+#   keepalive  actions     stops GitHub auto-disabling the daily schedule
+#
+# Third-party actions are pinned to full commit SHAs (tags can be moved);
+# Dependabot (.github/dependabot.yml) proposes updates.
 
 on:
   push:
+    branches: ["**"] # not tags
   schedule:
     # 22:41 UTC — after IRCC usually posts same-day draw results (afternoon ET).
     - cron: "41 22 * * *"
   workflow_dispatch: {}
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: site-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  build:
+  refresh:
+    name: Refresh IRCC data
+    # Daily, or a manual run on the default branch. (Scheduled runs always use
+    # the default branch; their payload has no repository object.)
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
-      contents: write # commit refreshed data files
-      issues: write # policy-monitor review issue
-      actions: write # keep the daily schedule from being auto-disabled
+      contents: read
     outputs:
-      deploy: ${{ steps.plan.outputs.deploy }}
-      feed_errors: ${{ steps.monitor.outputs.errors }}
+      changes: ${{ steps.monitor.outputs.changes }}
+      errors: ${{ steps.monitor.outputs.errors }}
+      data_changed: ${{ steps.monitor.outputs.data_changed }}
+      data_sha: ${{ steps.digest.outputs.sha }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-          cache: npm
-
-      - name: Decide what this run does
-        id: mode
-        env:
-          EVENT: ${{ github.event_name }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        run: |
-          # Scheduled runs always use the default branch (their payload has no repository).
-          if [ "$EVENT" = "schedule" ] || [ "$GITHUB_REF_NAME" = "$DEFAULT_BRANCH" ]; then
-            on_default=true
-          else
-            on_default=false
-          fi
-          if [ "$EVENT" != "push" ] && [ "$on_default" = true ]; then refresh=true; else refresh=false; fi
-          echo "on_default=$on_default" >> "$GITHUB_OUTPUT"
-          echo "refresh=$refresh" >> "$GITHUB_OUTPUT"
 
       - name: Refresh IRCC draws and check news
         id: monitor
-        if: steps.mode.outputs.refresh == 'true'
         shell: bash # adds pipefail, so a script crash isn't hidden by `tee`
+        timeout-minutes: 10
         run: node scripts/policy-monitor.mjs --update | tee monitor-report.md
 
-      - name: Plan build and deploy
-        id: plan
-        env:
-          EVENT: ${{ github.event_name }}
-          ON_DEFAULT: ${{ steps.mode.outputs.on_default }}
-          DATA_CHANGED: ${{ steps.monitor.outputs.data_changed }}
-        run: |
-          # Scheduled runs only rebuild when the draw data actually changed.
-          if [ "$EVENT" = "schedule" ] && [ "$DATA_CHANGED" != "true" ]; then build=false; else build=true; fi
-          if [ "$build" = true ] && [ "$ON_DEFAULT" = true ]; then deploy=true; else deploy=false; fi
-          echo "build=$build" >> "$GITHUB_OUTPUT"
-          echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
+      # The publish job checks this, so only data produced here gets committed.
+      - name: Fingerprint the data
+        id: digest
+        run: echo "sha=$(cat data/ee-draws.json data/monitor-state.json | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
+      - name: Hand the data to the build and publish jobs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ircc-data
+          path: |
+            data/ee-draws.json
+            data/monitor-state.json
+            monitor-report.md
+          if-no-files-found: error
+          retention-days: 1
+
+  build:
+    name: Test and build
+    needs: refresh
+    # Every push; on scheduled runs only when the draws changed.
+    if: >-
+      !cancelled() &&
+      (needs.refresh.result == 'success' || needs.refresh.result == 'skipped') &&
+      (github.event_name != 'schedule' || needs.refresh.outputs.data_changed == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      NEXT_TELEMETRY_DISABLED: 1 # no build telemetry to Vercel
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # No dependency cache: this job's output is deployed, and a fresh
+      # install costs well under a minute.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Use the refreshed IRCC data
+        if: needs.refresh.result == 'success'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ircc-data
+
+      # Install scripts are the usual way malicious npm packages run code;
+      # nothing this site uses needs one to build (.npmrc disables them too).
       - name: Install dependencies
-        if: steps.plan.outputs.build == 'true'
-        run: npm ci
+        run: npm ci --ignore-scripts
 
-      # Runs before the commit, so malformed refreshed data never lands.
+      - name: Verify npm registry signatures
+        run: npm audit signatures
+
+      # Runs before the publish job commits refreshed data, so malformed data
+      # never lands.
       - name: Test
-        if: steps.plan.outputs.build == 'true'
         run: npm test
 
+      - name: Build static site
+        run: PAGES_BASE_PATH="/${GITHUB_REPOSITORY#*/}" npm run build
+
+      - name: Upload Pages artifact
+        if: github.event_name == 'schedule' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: out
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.event_name == 'schedule' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write # publish the site
+      id-token: write # deploy-pages proves the deployment came from this workflow
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  publish:
+    name: Commit data and post report
+    needs: [refresh, build]
+    # Only after the refreshed data passed the tests — or, when the draws
+    # didn't change, after there was nothing new to test.
+    if: >-
+      !cancelled() &&
+      needs.refresh.result == 'success' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # commit refreshed data files
+      issues: write # policy-monitor review issue
+    steps:
+      # Keeps the checkout credentials to push the commit. Safe here: this job
+      # runs only git and first-party actions, and uploads no artifacts.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true # zizmor: ignore[artipacked]
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ircc-data
+
+      - name: Check the data is what the refresh job produced
+        env:
+          EXPECTED: ${{ needs.refresh.outputs.data_sha }}
+        run: |
+          actual="$(cat data/ee-draws.json data/monitor-state.json | sha256sum | cut -d' ' -f1)"
+          if [ "$actual" != "$EXPECTED" ]; then
+            echo "::error::Refreshed data changed between jobs — refusing to commit it."
+            exit 1
+          fi
+
       - name: Commit refreshed data
-        if: steps.mode.outputs.refresh == 'true'
         run: |
           git add data/ee-draws.json data/monitor-state.json
           if git diff --cached --quiet; then
@@ -100,8 +204,8 @@ jobs:
           }
 
       - name: Post report to the review issue
-        if: steps.monitor.outputs.changes == 'true' || steps.monitor.outputs.errors == 'true'
-        uses: actions/github-script@v9
+        if: needs.refresh.outputs.changes == 'true' || needs.refresh.outputs.errors == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const fs = require('fs');
@@ -123,47 +227,30 @@ jobs:
               });
             }
 
-      # GitHub disables scheduled workflows after 60 days without repository
-      # activity — this repo's previous monitor stopped that way in Aug 2026.
-      - name: Keep the daily schedule enabled
-        if: steps.mode.outputs.refresh == 'true'
-        continue-on-error: true
+  # GitHub disables scheduled workflows after 60 days without repository
+  # activity — this repo's previous monitor stopped that way in Aug 2026.
+  keepalive:
+    name: Keep the daily schedule enabled
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write # re-enable this workflow
+    steps:
+      - continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh api --method PUT "repos/$GITHUB_REPOSITORY/actions/workflows/site.yml/enable"
 
-      - name: Build static site
-        if: steps.plan.outputs.build == 'true'
-        run: PAGES_BASE_PATH="/${GITHUB_REPOSITORY#*/}" npm run build
-
-      - name: Upload Pages artifact
-        if: steps.plan.outputs.deploy == 'true'
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: out
-
-  deploy:
-    needs: build
-    if: needs.build.outputs.deploy == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
-
   # Marks the run failed when an IRCC feed was unreachable, without blocking
   # the deploy of anything that did refresh. The report also goes to the issue.
   feed-health:
-    needs: [build, deploy]
-    if: always() && needs.build.outputs.feed_errors == 'true'
+    name: IRCC feed health
+    needs: refresh
+    if: always() && needs.refresh.outputs.errors == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - run: |
-          echo "::error::An IRCC feed could not be read — see the build job log and the policy-monitor issue."
+          echo "::error::An IRCC feed could not be read — see the refresh job log and the policy-monitor issue."
           exit 1
