@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getDraws } from "@/lib/draws";
 import monitorState from "@/data/monitor-state.json";
-import {
-  LIMITS,
-  MAX_DRAW_JUMP,
-  STREAM_RE,
-  isPlausibleDrawDate,
-} from "@/scripts/ircc-draws.mjs";
+import { LIMITS, MAX_DRAW_GAP, STREAM_RE, isPlausibleDrawDate } from "@/scripts/ircc-draws.mjs";
 
 /**
  * Structural checks on data/ee-draws.json, which the daily refresh rewrites
@@ -27,6 +22,14 @@ describe("data/ee-draws.json", () => {
     const numbers = draws.rounds.map((r) => r.drawNumber);
     expect(new Set(numbers).size).toBe(numbers.length);
     expect([...numbers].sort((a, b) => b - a)).toEqual(numbers);
+  });
+
+  it("has consecutive draws whose dates don't run backwards", () => {
+    for (let i = 0; i + 1 < draws.rounds.length; i++) {
+      const [newer, older] = [draws.rounds[i], draws.rounds[i + 1]];
+      expect(newer.drawNumber - older.drawNumber).toBeLessThanOrEqual(MAX_DRAW_GAP);
+      expect(newer.date >= older.date, `${newer.drawNumber} vs ${older.drawNumber}`).toBe(true);
+    }
   });
 
   it("has well-formed rounds", () => {
@@ -53,7 +56,8 @@ describe("data/monitor-state.json", () => {
   it("tracks a draw number consistent with the draw data", () => {
     const newest = Math.max(...getDraws().rounds.map((r) => r.drawNumber));
     expect(Number.isInteger(monitorState.lastDrawNumber)).toBe(true);
-    expect(monitorState.lastDrawNumber).toBeLessThanOrEqual(newest + MAX_DRAW_JUMP);
+    expect(monitorState.lastDrawNumber).toBeGreaterThanOrEqual(0);
+    expect(monitorState.lastDrawNumber).toBeLessThanOrEqual(newest);
   });
 
   it("tracks a news date that isn't in the future", () => {

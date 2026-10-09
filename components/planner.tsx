@@ -26,9 +26,11 @@ export default function Planner({ draws }: { draws: DrawsData }) {
       if (e.persisted && container.current) container.current.style.visibility = "hidden";
     };
     const onPageShow = (e: PageTransitionEvent) => {
-      if (!e.persisted) return;
-      setProfile(null);
-      setResetKey((k) => k + 1); // remounts the wizard with empty answers
+      if (e.persisted) {
+        setProfile(null);
+        setResetKey((k) => k + 1); // remounts the wizard with empty answers
+      }
+      // Always unhide, so a missed reset can never leave a blank page.
       if (container.current) container.current.style.visibility = "";
     };
     window.addEventListener("pagehide", onPageHide);

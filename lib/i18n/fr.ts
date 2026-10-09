@@ -236,6 +236,8 @@ export const fr = {
     "Le texte détaillé du plan est en anglais pour l'instant — le questionnaire et les résultats clés sont entièrement traduits.",
   "res.change": "← Modifier mes réponses",
   "res.pdf": "Enregistrer en PDF",
+  "res.sharedTip":
+    "Ordinateur partagé ? Fermez cet onglet quand vous avez terminé. Un PDF enregistré reste dans le dossier Téléchargements et peut indiquer votre citoyenneté ou votre statut.",
   "res.guide": "Lire le guide détaillé →",
   "res.official": "Page officielle d'IRCC ↗",
   "unit.months": "mois",

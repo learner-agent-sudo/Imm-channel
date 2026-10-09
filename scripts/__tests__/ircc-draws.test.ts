@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  MAX_DRAW_JUMP,
+  MAX_DRAW_GAP,
   MIN_VALID_ROUNDS,
+  assertNotOlder,
   cleanStream,
   isPlausibleDrawDate,
-  nextDrawHighWater,
   normalizeRounds,
   parseCount,
   serializeDrawsFile,
@@ -31,11 +31,11 @@ const validRows = (count: number, start = 400) =>
 describe("normalizeRounds", () => {
   it("parses IRCC's string fields, including thousands separators", () => {
     const [newest] = normalizeRounds(
-      feed([...validRows(MIN_VALID_ROUNDS), rawRound(500, { drawSize: "5,000", drawCRS: "409" })]),
+      feed([...validRows(MIN_VALID_ROUNDS), rawRound(410, { drawSize: "5,000", drawCRS: "409" })]),
     );
     expect(newest).toEqual({
-      drawNumber: 500,
-      date: "2026-07-25",
+      drawNumber: 410,
+      date: "2026-07-19",
       stream: "Canadian Experience Class",
       invitations: 5000,
       cutoff: 409,
@@ -88,9 +88,21 @@ describe("normalizeRounds", () => {
       "Canadian Experience Class @octocat",
       "x".repeat(121),
     ]) {
-      const rows = [...validRows(MIN_VALID_ROUNDS), rawRound(470, { drawName })];
+      const rows = [...validRows(MIN_VALID_ROUNDS), rawRound(410, { drawName })];
       expect(() => normalizeRounds(feed(rows)), drawName).toThrow(/stream name/);
     }
+  });
+
+  it("refuses a garbled draw number that would become the newest draw", () => {
+    const rows = [...validRows(MIN_VALID_ROUNDS), rawRound(4090)]; // "4090" for 409
+    expect(() => normalizeRounds(feed(rows))).toThrow(/doesn't follow/);
+    const ok = [...validRows(MIN_VALID_ROUNDS), rawRound(409 + MAX_DRAW_GAP)];
+    expect(normalizeRounds(feed(ok))[0].drawNumber).toBe(409 + MAX_DRAW_GAP);
+  });
+
+  it("refuses draw numbers whose dates run backwards", () => {
+    const rows = [...validRows(MIN_VALID_ROUNDS), rawRound(410, { drawDate: "2026-07-01" })];
+    expect(() => normalizeRounds(feed(rows))).toThrow(/doesn't follow/);
   });
 
   it("only checks the names of rounds it keeps", () => {
@@ -152,16 +164,15 @@ describe("cleanStream", () => {
   });
 });
 
-describe("nextDrawHighWater", () => {
+describe("assertNotOlder", () => {
   const rounds = (n: number) => [{ drawNumber: n }];
-  it("advances to the newest draw and never moves backwards", () => {
-    expect(nextDrawHighWater(418, rounds(430))).toBe(430);
-    expect(nextDrawHighWater(430, rounds(418))).toBe(430);
-    expect(nextDrawHighWater(0, rounds(430))).toBe(430);
+  it("allows newer or corrected data, including a first refresh", () => {
+    expect(() => assertNotOlder(rounds(440), rounds(447))).not.toThrow();
+    expect(() => assertNotOlder(rounds(447), rounds(447))).not.toThrow();
+    expect(() => assertNotOlder([], rounds(447))).not.toThrow();
   });
-  it("refuses an implausible jump that would hide every real draw", () => {
-    expect(() => nextDrawHighWater(418, rounds(418 + MAX_DRAW_JUMP + 1))).toThrow(/jumped/);
-    expect(nextDrawHighWater(418, rounds(418 + MAX_DRAW_JUMP))).toBe(418 + MAX_DRAW_JUMP);
+  it("refuses to roll the published draws back to a stale feed", () => {
+    expect(() => assertNotOlder(rounds(447), rounds(440))).toThrow(/older than the published/);
   });
 });
 

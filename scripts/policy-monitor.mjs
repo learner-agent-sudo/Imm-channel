@@ -27,7 +27,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
   IRCC_ROUNDS_URL,
-  nextDrawHighWater,
+  assertNotOlder,
   normalizeRounds,
   serializeDrawsFile,
 } from "./ircc-draws.mjs";
@@ -84,7 +84,10 @@ async function fetchTextWithRetry(url, accept, maxBytes) {
       });
       assertFeedUrl(res.url, FEED_HOSTS);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await readCapped(res, maxBytes);
+      const text = await readCapped(res, maxBytes);
+      // Diagnostics for the run log (stderr, not the report).
+      console.error(`Fetched ${text.length} chars from ${res.url}`);
+      return text;
     } catch (err) {
       lastError = err;
     }
@@ -97,9 +100,10 @@ async function checkDraws(state, report) {
     await fetchTextWithRetry(IRCC_ROUNDS_URL, "application/json", MAX_ROUNDS_BYTES),
   );
   const rounds = normalizeRounds(raw);
-  // Checked before anything is written, so a garbled feed changes nothing.
-  const lastDrawNumber = nextDrawHighWater(state.lastDrawNumber, rounds);
   const current = readJson(DRAWS_PATH, { rounds: [] });
+  // Checked before anything is written, so a stale feed changes nothing.
+  assertNotOlder(current.rounds, rounds);
+  const lastDrawNumber = Math.max(state.lastDrawNumber, rounds[0].drawNumber);
 
   const fresh = rounds.filter((r) => r.drawNumber > state.lastDrawNumber);
   if (fresh.length > 0) {
@@ -146,7 +150,7 @@ async function checkNews(state, report, errors) {
     throw new Error("news feed returned no entries");
   }
 
-  const since = new Date(state.lastNewsDate).getTime();
+  const since = Date.parse(state.lastNewsDate) || 0;
   const future = entries.filter((e) => e.updated && !isCurrentDate(e.updated));
   if (future.length > 0) {
     errors.push(`${future.length} announcement(s) dated in the future were ignored`);

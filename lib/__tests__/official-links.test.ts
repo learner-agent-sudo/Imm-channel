@@ -14,8 +14,8 @@ const SOURCES = ["app", "components", "lib", "data"];
 
 /** Non-government links that are deliberately there (not policy sources). */
 const OTHER_ALLOWED = new Set([
-  // Methodology page: the host's privacy statement.
-  "https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement",
+  // Methodology page: what GitHub Pages, the host, logs about visitors.
+  "https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages#data-collection",
 ]);
 
 function files(dir: string): string[] {

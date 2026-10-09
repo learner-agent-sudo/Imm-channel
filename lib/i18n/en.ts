@@ -243,6 +243,8 @@ export const en = {
     "Detailed plan text is shown in English for now — questionnaire and key results are fully translated.",
   "res.change": "← Change my answers",
   "res.pdf": "Save as PDF",
+  "res.sharedTip":
+    "On a shared computer? Close this tab when you're done. A saved PDF stays in the Downloads folder and may show your citizenship or status.",
   "res.guide": "Read the detailed guide →",
   "res.official": "Official IRCC page ↗",
   "unit.months": "months",

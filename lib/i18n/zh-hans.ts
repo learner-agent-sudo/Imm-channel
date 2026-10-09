@@ -226,6 +226,8 @@ export const zhHans = {
   "res.engNote": "详细计划内容暂以英文显示 — 问卷及主要结果已全面翻译。",
   "res.change": "← 修改我的答案",
   "res.pdf": "保存为 PDF",
+  "res.sharedTip":
+    "使用公用电脑？完成后请关闭此标签页。已保存的 PDF 会留在“下载”文件夹，并可能显示您的国籍或身份。",
   "res.guide": "阅读详细指南 →",
   "res.official": "IRCC 官方页面 ↗",
   "unit.months": "个月",

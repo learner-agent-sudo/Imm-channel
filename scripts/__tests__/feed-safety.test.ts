@@ -194,6 +194,16 @@ describe("nextNewsHighWater", () => {
     ).toBe("2026-06-01T00:00:00.000Z");
   });
 
+  it("recovers from a corrupted previous value instead of stalling", () => {
+    expect(nextNewsHighWater("garbage", ["2026-09-01T12:00:00Z"], now)).toBe("2026-09-01T12:00:00.000Z");
+  });
+
+  it("returns the previous value unchanged when nothing is newer", () => {
+    expect(nextNewsHighWater("2026-06-01T00:00:00Z", ["2026-05-01T00:00:00Z"], now)).toBe(
+      "2026-06-01T00:00:00Z",
+    );
+  });
+
   it("never moves backwards", () => {
     expect(nextNewsHighWater("2026-09-15T00:00:00.000Z", ["2026-08-01T00:00:00Z"], now)).toBe(
       "2026-09-15T00:00:00.000Z",

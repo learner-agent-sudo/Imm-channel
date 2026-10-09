@@ -155,7 +155,8 @@ export function isCurrentDate(value, now = Date.now()) {
  * announcement until then.
  */
 export function nextNewsHighWater(previousIso, dates, now = Date.now()) {
-  const previous = Date.parse(previousIso);
+  const parsed = Date.parse(previousIso);
+  const previous = Number.isFinite(parsed) ? parsed : 0; // a corrupted mark restarts, not stalls
   const current = dates.filter((d) => isCurrentDate(d, now)).map((d) => Date.parse(d));
   const newest = Math.max(previous, ...current);
   return newest > previous ? new Date(newest).toISOString() : previousIso;

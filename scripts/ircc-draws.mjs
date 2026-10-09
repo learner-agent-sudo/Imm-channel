@@ -25,12 +25,14 @@ export const LIMITS = {
 };
 
 /**
- * Most draws the high-water mark may advance in one refresh — far more than
- * IRCC holds in the months the daily job could plausibly be down. A bigger
- * jump means a garbled draw number, which would otherwise hide every real
- * draw from the report for good.
+ * Largest gap allowed between consecutive published draw numbers. IRCC
+ * numbers rounds sequentially and the feed lists them all, so a bigger gap
+ * means a garbled number (e.g. "4470" for 447) — which would otherwise be
+ * published as the newest draw and, as the monitor's high-water mark, hide
+ * every real draw from the report for good. Checked within the feed, so it
+ * doesn't depend on how long the daily job was down.
  */
-export const MAX_DRAW_JUMP = 100;
+export const MAX_DRAW_GAP = 5;
 
 /** Express Entry's first round was in January 2015. */
 const FIRST_DRAW_DATE = "2015-01-01";
@@ -42,6 +44,9 @@ const FIRST_DRAW_DATE = "2015-01-01";
  * a URL, a paragraph of text — is refused rather than shown.
  */
 export const STREAM_RE = /^[\p{L}\p{N} .,'’&()/:+–—-]{1,120}$/u;
+
+/** Things that look like a link — never part of a real stream name. */
+const LINK_LIKE = /https?:|www\.|\.[a-z]{2,}\//i;
 
 const DATA_NOTE =
   "Written by scripts/policy-monitor.mjs --update from IRCC's official rounds feed " +
@@ -71,7 +76,7 @@ export function isPlausibleDrawDate(value, now = Date.now()) {
 export function cleanStream(value) {
   const s = typeof value === "string" ? value.normalize("NFKC").replace(/\s+/g, " ").trim() : "";
   if (s === "") return "Unknown";
-  if (!STREAM_RE.test(s) || /:\/\/|www\./i.test(s)) {
+  if (!STREAM_RE.test(s) || LINK_LIKE.test(s)) {
     // The raw value isn't echoed: this message ends up in the review issue.
     throw new Error("unexpected stream name in IRCC feed — refusing to overwrite draw data");
   }
@@ -111,21 +116,34 @@ export function normalizeRounds(raw, limit = ROUNDS_TO_KEEP, now = Date.now()) {
     );
   }
   rounds.sort((a, b) => b.drawNumber - a.drawNumber);
-  // Only the names that get published are checked, so an odd name in a
-  // years-old round can't block today's refresh.
-  return rounds.slice(0, limit).map((r) => ({ ...r, stream: cleanStream(r.stream) }));
+  const kept = rounds.slice(0, limit);
+  // Only the published rounds are checked, so an odd value in a years-old
+  // round can't block today's refresh.
+  for (let i = 0; i + 1 < kept.length; i++) {
+    const [newer, older] = [kept[i], kept[i + 1]];
+    if (newer.drawNumber - older.drawNumber > MAX_DRAW_GAP || newer.date < older.date) {
+      throw new Error(
+        `draw ${newer.drawNumber} (${newer.date}) doesn't follow draw ${older.drawNumber} ` +
+          `(${older.date}) — refusing to overwrite draw data`,
+      );
+    }
+  }
+  return kept.map((r) => ({ ...r, stream: cleanStream(r.stream) }));
 }
 
-/** The next draw high-water mark; throws on an implausible jump. */
-export function nextDrawHighWater(previous, rounds) {
-  const newest = rounds[0].drawNumber;
-  if (previous > 0 && newest > previous + MAX_DRAW_JUMP) {
+/**
+ * Throws if the feed's newest draw is older than the published one — a
+ * stale or truncated copy of the feed (e.g. from a CDN edge) must not roll
+ * the site's draw data back. Corrections to existing draws are fine.
+ */
+export function assertNotOlder(publishedRounds, rounds) {
+  const published = publishedRounds[0]?.drawNumber ?? 0;
+  if (rounds[0].drawNumber < published) {
     throw new Error(
-      `draw number jumped from ${previous} to ${newest} — refusing to update; ` +
-        "if this is real, set lastDrawNumber in data/monitor-state.json by hand",
+      `feed's newest draw ${rounds[0].drawNumber} is older than the published ${published} — ` +
+        "refusing to overwrite draw data",
     );
   }
-  return Math.max(previous, newest);
 }
 
 /**

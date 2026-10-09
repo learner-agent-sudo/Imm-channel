@@ -54,12 +54,12 @@ export default function MethodologyPage() {
           browser. The site is hosted on GitHub Pages, which, like any web
           host, records visitors&apos; IP addresses in its server logs (see{" "}
           <a
-            href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement"
+            href="https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages#data-collection"
             target="_blank"
             rel="noopener noreferrer"
             className="text-maple underline underline-offset-2"
           >
-            GitHub&apos;s privacy statement
+            GitHub&apos;s Pages documentation
           </a>
           ). One thing outside our control: if you use your browser&apos;s
           translate feature, the browser may send the page&apos;s text,

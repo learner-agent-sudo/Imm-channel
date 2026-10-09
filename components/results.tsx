@@ -470,6 +470,7 @@ export default function Results({
         >
           {t("res.pdf")}
         </button>
+        <p className="basis-full text-xs text-soft print:hidden">{t("res.sharedTip")}</p>
       </div>
     </div>
   );
