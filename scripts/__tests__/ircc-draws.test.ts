@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_DRAW_GAP,
   MIN_VALID_ROUNDS,
+  assertNoneMissing,
   assertNotOlder,
+  countSkippedNewer,
   cleanStream,
   isPlausibleDrawDate,
   normalizeRounds,
@@ -112,13 +114,16 @@ describe("normalizeRounds", () => {
 });
 
 describe("parseCount", () => {
-  it("accepts plain and comma-grouped whole numbers within the limit", () => {
+  it("accepts plain and comma- or space-grouped whole numbers within the limit", () => {
     expect(parseCount("5,000", 50000)).toBe(5000);
     expect(parseCount(" 418 ", 9999)).toBe(418);
+    for (const spaced of ["5 000", "5\u00A0000", "5\u202F000", "5\u2009000"]) {
+      expect(parseCount(spaced, 50000), spaced).toBe(5000);
+    }
   });
 
   it("rejects everything else", () => {
-    for (const bad of ["418,419", "1e9", "-7", "4.5", "", "N/A", "12,34", "9".repeat(400)]) {
+    for (const bad of ["418,419", "1e9", "-7", "4.5", "", "N/A", "12,34", "50 00", "476*", "5,000.0", "9".repeat(400)]) {
       expect(parseCount(bad, 9999), bad).toBeNaN();
     }
   });
@@ -161,6 +166,26 @@ describe("cleanStream", () => {
       }
       expect(() => cleanStream(bad), bad).toThrow(/^unexpected stream name in IRCC feed/);
     }
+  });
+});
+
+describe("countSkippedNewer", () => {
+  it("counts unreadable rows that look newer than the newest valid draw", () => {
+    const raw = feed([...validRows(MIN_VALID_ROUNDS), rawRound(410, { drawCRS: "TBD" }), rawRound(300, { drawCRS: "" })]);
+    expect(countSkippedNewer(raw, 409)).toBe(1);
+    expect(countSkippedNewer(feed(validRows(MIN_VALID_ROUNDS)), 409)).toBe(0);
+    expect(countSkippedNewer(null, 409)).toBe(0);
+  });
+});
+
+describe("assertNoneMissing", () => {
+  const rounds = (...ns: number[]) => ns.map((drawNumber) => ({ drawNumber }));
+  it("allows new draws and draws that aged out of the kept window", () => {
+    expect(() => assertNoneMissing(rounds(447, 446, 445), rounds(448, 447, 446))).not.toThrow();
+    expect(() => assertNoneMissing([], rounds(448, 447))).not.toThrow();
+  });
+  it("refuses to drop a published draw that stopped parsing", () => {
+    expect(() => assertNoneMissing(rounds(447, 446, 445), rounds(447, 445))).toThrow(/missing/);
   });
 });
 

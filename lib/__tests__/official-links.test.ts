@@ -28,7 +28,9 @@ function files(dir: string): string[] {
 
 describe("external links", () => {
   const links = SOURCES.flatMap((dir) => files(join(ROOT, dir))).flatMap((file) =>
-    [...readFileSync(file, "utf8").matchAll(/https?:\/\/[^\s"'`)<>\\]+/g)].map((m) => ({
+    // Also catches mis-cased schemes and scheme-less or typo'd links
+    // ("//host", "https//host", "htps://host"): officialUrl rejects those.
+    [...readFileSync(file, "utf8").matchAll(/(?:\bhttps?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}[^\s"'`)<>\\]*/gi)].map((m) => ({
       file: file.slice(ROOT.length + 1),
       url: m[0],
     })),

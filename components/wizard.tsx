@@ -255,6 +255,7 @@ function Toggle({
   return (
     <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 hover:bg-slate-50">
       <input
+        autoComplete="off"
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
@@ -286,6 +287,9 @@ const ABILITY_KEYS: Record<(typeof ABILITIES)[number], DictKey> = {
   speaking: "ability.speaking",
 };
 
+// Every field sets autoComplete="off": besides autofill, that stops the
+// browser restoring a previous visitor's answers into the form when someone
+// presses Back on a shared computer.
 export default function Wizard({ onComplete }: { onComplete: (p: Profile) => void }) {
   const { t } = useT();
   const [step, setStep] = useState(0);
@@ -355,6 +359,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
           <>
             <Field label={t("wiz.age")}>
               <input
+                autoComplete="off"
                 type="number"
                 min={16}
                 max={70}
@@ -366,6 +371,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
             </Field>
             <Field label={t("wiz.marital")}>
               <select
+                autoComplete="off"
                 value={form.maritalStatus}
                 onChange={(e) => set("maritalStatus", e.target.value as FormState["maritalStatus"])}
                 className={inputCls}
@@ -386,6 +392,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
               <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <Field label={t("wiz.spouse.edu")}>
                   <select
+                    autoComplete="off"
                     value={form.spouseEducation}
                     onChange={(e) => set("spouseEducation", e.target.value as EducationLevel)}
                     className={inputCls}
@@ -395,6 +402,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
                 </Field>
                 <Field label={t("wiz.spouse.lang")} hint={t("wiz.spouse.lang.hint")}>
                   <select
+                    autoComplete="off"
                     value={form.spouseCLB}
                     onChange={(e) => set("spouseCLB", e.target.value)}
                     className={inputCls}
@@ -405,6 +413,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
                 </Field>
                 <Field label={t("wiz.spouse.work")}>
                   <input
+                    autoComplete="off"
                     type="number"
                     min={0}
                     max={10}
@@ -417,6 +426,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
             )}
             <Field label={t("wiz.children")} hint={t("wiz.children.hint")}>
               <input
+                autoComplete="off"
                 type="number"
                 min={0}
                 max={10}
@@ -432,6 +442,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
           <>
             <Field label={t("wiz.edu")} hint={t("wiz.edu.hint")}>
               <select
+                autoComplete="off"
                 value={form.education}
                 onChange={(e) => set("education", e.target.value as EducationLevel)}
                 className={inputCls}
@@ -441,6 +452,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
             </Field>
             <Field label={t("wiz.cdnCred")} hint={t("wiz.cdnCred.hint")}>
               <select
+                autoComplete="off"
                 value={form.canadianCredential}
                 onChange={(e) =>
                   set("canadianCredential", e.target.value as FormState["canadianCredential"])
@@ -459,6 +471,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
           <>
             <Field label={t("wiz.english")} hint={t("wiz.english.hint")}>
               <select
+                autoComplete="off"
                 value={form.englishTest}
                 onChange={(e) => set("englishTest", e.target.value as EnglishTest)}
                 className={inputCls}
@@ -476,6 +489,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
                 {ABILITIES.map((ability) => (
                   <Field key={ability} label={t(ABILITY_KEYS[ability])}>
                     <input
+                      autoComplete="off"
                       type="number"
                       step="0.5"
                       value={form.englishScores[ability]}
@@ -493,6 +507,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
             {form.englishTest === "self-estimate" && (
               <Field label={t("wiz.engSelf")}>
                 <select
+                  autoComplete="off"
                   value={form.englishSelfCLB}
                   onChange={(e) => set("englishSelfCLB", e.target.value)}
                   className={inputCls}
@@ -504,6 +519,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
 
             <Field label={t("wiz.french")} hint={t("wiz.french.hint")}>
               <select
+                autoComplete="off"
                 value={form.frenchNCLC}
                 onChange={(e) => set("frenchNCLC", e.target.value)}
                 className={inputCls}
@@ -524,6 +540,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
           <>
             <Field label={t("wiz.teer")}>
               <select
+                autoComplete="off"
                 value={form.teer}
                 onChange={(e) => set("teer", e.target.value)}
                 className={inputCls}
@@ -538,6 +555,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
             <div className="grid grid-cols-2 gap-4">
               <Field label={t("wiz.foreignYears")}>
                 <input
+                  autoComplete="off"
                   type="number"
                   min={0}
                   max={20}
@@ -548,6 +566,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
               </Field>
               <Field label={t("wiz.cdnYears")}>
                 <input
+                  autoComplete="off"
                   type="number"
                   min={0}
                   max={20}
@@ -559,6 +578,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
             </div>
             <Field label={t("wiz.cat")} hint={t("wiz.cat.hint")}>
               <select
+                autoComplete="off"
                 value={form.occupationCategory}
                 onChange={(e) => set("occupationCategory", e.target.value as OccupationCategory)}
                 className={inputCls}
@@ -589,6 +609,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
           <>
             <Field label={t("wiz.where")}>
               <select
+                autoComplete="off"
                 value={form.inCanadaStatus}
                 onChange={(e) => set("inCanadaStatus", e.target.value as InCanadaStatus)}
                 className={inputCls}
@@ -601,6 +622,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
             </Field>
             <Field label={t("wiz.citizenship")} hint={t("wiz.citizenship.hint")}>
               <select
+                autoComplete="off"
                 value={form.citizenship}
                 onChange={(e) => set("citizenship", e.target.value as Citizenship)}
                 className={inputCls}
@@ -614,6 +636,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
             </Field>
             <Field label={t("wiz.iec")} hint={t("wiz.iec.hint")}>
               <select
+                autoComplete="off"
                 value={form.iecEligible}
                 onChange={(e) => set("iecEligible", e.target.value as IecEligible)}
                 className={inputCls}
@@ -625,6 +648,7 @@ export default function Wizard({ onComplete }: { onComplete: (p: Profile) => voi
             </Field>
             <Field label={t("wiz.funds")} hint={t("wiz.funds.hint")}>
               <select
+                autoComplete="off"
                 value={form.fundsBand}
                 onChange={(e) => set("fundsBand", e.target.value as FundsBand)}
                 className={inputCls}

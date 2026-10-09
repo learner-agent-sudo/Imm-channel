@@ -52,11 +52,15 @@ const DATA_NOTE =
   "Written by scripts/policy-monitor.mjs --update from IRCC's official rounds feed " +
   "(daily GitHub Action). Do not edit by hand.";
 
-/** A whole number such as "5,000" or "418" up to `max`; NaN for anything else. */
+/**
+ * A whole number such as "5,000", "5 000" or "418" up to `max`; NaN for
+ * anything else. Thousands may be grouped with a comma or any of the spaces
+ * used for that (regular, no-break, narrow no-break, thin).
+ */
 export function parseCount(value, max) {
   const s = String(value ?? "").trim();
-  if (!/^\d{1,3}(,\d{3})*$|^\d+$/.test(s)) return NaN;
-  const n = Number(s.replace(/,/g, ""));
+  if (!/^\d{1,3}([, \u00A0\u202F\u2009]\d{3})*$|^\d+$/.test(s)) return NaN;
+  const n = Number(s.replace(/\D/g, ""));
   return Number.isSafeInteger(n) && n <= max ? n : NaN;
 }
 
@@ -129,6 +133,36 @@ export function normalizeRounds(raw, limit = ROUNDS_TO_KEEP, now = Date.now()) {
     }
   }
   return kept.map((r) => ({ ...r, stream: cleanStream(r.stream) }));
+}
+
+/**
+ * How many rows look newer than `newest` but were skipped as invalid — a
+ * sign IRCC changed the feed's format, which would otherwise mean new draws
+ * silently stop appearing.
+ */
+export function countSkippedNewer(raw, newest) {
+  const rows = Array.isArray(raw?.rounds) ? raw.rounds : [];
+  return rows.filter((row) => {
+    const digits = String(row?.drawNumber ?? "").replace(/\D/g, "");
+    const n = digits.length <= 4 ? Number(digits) : 0;
+    return n > newest;
+  }).length;
+}
+
+/**
+ * Throws if published draws within the refreshed range are missing from the
+ * new data — IRCC doesn't delete rounds, so this means rows that no longer
+ * parse, and publishing would silently drop them.
+ */
+export function assertNoneMissing(publishedRounds, rounds) {
+  const oldest = rounds[rounds.length - 1].drawNumber;
+  const kept = new Set(rounds.map((r) => r.drawNumber));
+  const missing = publishedRounds.filter((r) => r.drawNumber >= oldest && !kept.has(r.drawNumber));
+  if (missing.length > 0) {
+    throw new Error(
+      `${missing.length} published draw(s) missing from the IRCC feed — refusing to overwrite draw data`,
+    );
+  }
 }
 
 /**

@@ -68,10 +68,12 @@ jobs:
         timeout-minutes: 10
         run: node scripts/policy-monitor.mjs --update | tee monitor-report.md
 
-      # The publish job checks this, so only data produced here gets committed.
+      # The publish job checks this, so only what this job produced gets
+      # committed or posted. Per-file and name-bound: the same command must
+      # run in publish.
       - name: Fingerprint the data
         id: digest
-        run: echo "sha=$(cat data/ee-draws.json data/monitor-state.json | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+        run: echo "sha=$(sha256sum data/ee-draws.json data/monitor-state.json monitor-report.md | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Hand the data to the build and publish jobs
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -184,26 +186,33 @@ jobs:
       contents: write # commit refreshed data files
       issues: write # policy-monitor review issue
     steps:
-      # Keeps the checkout credentials to push the commit. Safe here: this job
-      # runs only git and first-party actions, and uploads no artifacts.
+      # Keeps the checkout credentials to push the commit. This job runs only
+      # git and first-party actions, and nothing from the artifact enters the
+      # checkout except the two data files, after their checksum is verified.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.ref }}
           persist-credentials: true # zizmor: ignore[artipacked]
 
+      # Unpacked outside the checkout: an artifact is untrusted input (a
+      # compromised build job could replace it), and extracting it into the
+      # repo could plant files such as .git/config.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ircc-data
+          path: ${{ runner.temp }}/ircc-data
 
       - name: Check the data is what the refresh job produced
+        working-directory: ${{ runner.temp }}/ircc-data
         env:
           EXPECTED: ${{ needs.refresh.outputs.data_sha }}
         run: |
-          actual="$(cat data/ee-draws.json data/monitor-state.json | sha256sum | cut -d' ' -f1)"
+          actual="$(sha256sum data/ee-draws.json data/monitor-state.json monitor-report.md | sha256sum | cut -d' ' -f1)"
           if [ "$actual" != "$EXPECTED" ]; then
             echo "::error::Refreshed data changed between jobs — refusing to commit it."
             exit 1
           fi
+          cp data/ee-draws.json data/monitor-state.json "$GITHUB_WORKSPACE/data/"
 
       # Before the commit: if posting fails, the state isn't committed and
       # tomorrow's run reports the same items again rather than losing them.
@@ -213,7 +222,8 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const report = fs.readFileSync('monitor-report.md', 'utf8');
+            // The verified copy, outside the checkout.
+            const report = fs.readFileSync(`${process.env.RUNNER_TEMP}/ircc-data/monitor-report.md`, 'utf8');
             // GitHub rejects comments over 65,536 characters.
             const body = report.length > 60000 ? `${report.slice(0, 60000)}\n\n_(truncated)_` : report;
             const { owner, repo } = context.repo;

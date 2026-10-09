@@ -34,9 +34,14 @@ describe("mdText", () => {
     expect(mdText("cc &#64;octocat")).toBe(`cc &amp;\\#${ZWSP}64;octocat`);
   });
 
-  it("stops bare URLs from autolinking", () => {
-    expect(mdText("visit https://evil.example")).not.toContain("https://");
-    expect(mdText("www.evil.example")).not.toContain("www.");
+  it("stops bare URLs and emails from autolinking, wherever they start", () => {
+    for (const s of ["visit https://evil.example", "_https://e.x", "1https://e.x", "_HTTPS://e.x", "x_ftp://e.x"]) {
+      expect(mdText(s), s).not.toMatch(/(https?|ftp):/i);
+    }
+    for (const s of ["www.evil.example", "_www.evil.example"]) {
+      expect(mdText(s), s).not.toContain("www.");
+    }
+    expect(mdText("a@.b.co")).toBe(`a@${ZWSP}.b.co`);
   });
 
   it("flattens newlines and control characters, so no new block or runner command can start", () => {
@@ -96,6 +101,15 @@ describe("mdLink", () => {
       "[x](https://www.canada.ca/a_%28b%29.html)",
     );
   });
+
+  it("can't spell an Actions runner command in the URL", () => {
+    expect(mdLink("t", "https://www.canada.ca/#a##[error]x")).not.toContain("##[");
+    expect(mdLink("t", "https://www.canada.ca/a?b=\\c")).toContain("%5C");
+  });
+
+  it("drops absurdly long links", () => {
+    expect(mdLink("t", `https://www.canada.ca/${"a".repeat(2000)}`)).toBe("t");
+  });
 });
 
 describe("decodeXmlEntities", () => {
@@ -128,6 +142,12 @@ describe("parseAtomEntries", () => {
     ]);
   });
 
+  it("prefers the alternate link over other rels", () => {
+    const xml = `<feed><entry><title>t</title><link rel="self" href="https://www.canada.ca/feed"/>
+      <link rel="alternate" type="text/html" href="https://www.canada.ca/a.html"/></entry></feed>`;
+    expect(parseAtomEntries(xml)[0].url).toBe("https://www.canada.ca/a.html");
+  });
+
   it("caps the number of entries", () => {
     const many = "<feed>" + "<entry><title>t</title></entry>".repeat(500) + "</feed>";
     expect(parseAtomEntries(many, 50)).toHaveLength(50);
@@ -137,6 +157,7 @@ describe("parseAtomEntries", () => {
     const started = performance.now();
     parseAtomEntries("<entry>".repeat(200_000));
     parseAtomEntries("<entry>" + "<link".repeat(200_000) + "</entry>");
+    parseAtomEntries("<entry><link" + "x".repeat(2_000_000) + "</entry>");
     expect(performance.now() - started).toBeLessThan(1000);
   });
 });

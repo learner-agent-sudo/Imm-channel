@@ -6,15 +6,18 @@
  * GitHub Pages can't send response headers, so the policy lives in a
  * <meta http-equiv> tag. Next.js inlines its page data as <script> blocks,
  * so instead of allowing inline scripts wholesale this hashes each one and
- * allows exactly those. Injected markup (an XSS bug, a compromised dependency
- * adding a <script>) has no matching hash and won't run, and nothing on the
- * page can load from — or send questionnaire answers to — another origin.
+ * allows exactly those. A script injected at runtime (an XSS bug) has no
+ * matching hash and won't run, and nothing on the page can load from — or
+ * send questionnaire answers to — another origin. (On GitHub Pages "origin"
+ * means the account's whole <owner>.github.io, shared by its Pages sites.)
  *
  * Hashes change on every build (chunk names) and every draw refresh (pages
  * embed the draw data), which is why this runs after each build rather than
- * living in source. It fails the build if any page can't be fully covered —
- * e.g. if a Next.js upgrade starts emitting inline styles — so a policy that
- * would silently break the site never ships.
+ * living in source. The build fails if a page has an inline style, an inline
+ * event handler, or an inline script that isn't Next.js page data — so
+ * build-time injection is refused rather than hashed, and a Next.js upgrade
+ * that changes its output fails loudly. External resources and scripts added
+ * at runtime aren't checked here, so try new features in a browser.
  */
 
 import { createHash } from "node:crypto";

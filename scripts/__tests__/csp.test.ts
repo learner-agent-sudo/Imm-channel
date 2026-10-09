@@ -37,7 +37,8 @@ describe("inlineScripts", () => {
 
 describe("scriptHash", () => {
   it("matches the browser's sha256 source expression", () => {
-    expect(scriptHash("alert(1)")).toBe(sha("alert(1)"));
+    // The value browsers report for alert(1) in CSP violation messages.
+    expect(scriptHash("alert(1)")).toBe("'sha256-bhHHL3z2vDgxUt0W3dWQOrprscmda2Y5pLsLg4GF+pI='");
   });
 
   it("normalizes line endings the way the HTML parser does", () => {

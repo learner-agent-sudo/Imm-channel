@@ -43,21 +43,25 @@ export function mdText(value, maxLength = 300) {
       .replace(/&/g, "&amp;")
       // Markdown and HTML syntax, incl. table pipes and autolink brackets.
       .replace(/[\\`*_{}[\]()<>#+!|~]/g, (c) => `\\${c}`)
-      // GitHub links @user mentions and #123 / GH-123 references even when
-      // backslash-escaped; a zero-width space stops them.
-      .replace(/@(?=[\p{L}\p{N}])/gu, `@${ZWSP}`)
+      // GitHub links @user mentions (and emails), #123 and GH-123 references
+      // even when backslash-escaped; a zero-width space stops them.
+      .replace(/@/g, `@${ZWSP}`)
       .replace(/#(?=\d)/g, `#${ZWSP}`)
-      .replace(/\b(GH)-(?=\d)/gi, `$1${ZWSP}-`)
-      // Bare URLs and www. hosts would be autolinked.
-      .replace(/\b(https?|ftp|www)(:|\.)/gi, `$1${ZWSP}$2`)
+      .replace(/(GH)-(?=\d)/gi, `$1${ZWSP}-`)
+      // Bare URLs and www. hosts would be autolinked — wherever they start
+      // (GitHub autolinks "_https://…" and "1www.…" too).
+      .replace(/(https?|ftp|www)(?=[:.])/gi, `$1${ZWSP}`)
   );
 }
 
 /** `[text](url)` when the URL is official; otherwise the text alone. */
 export function mdLink(text, url) {
   const href = officialUrl(url);
-  // Percent-encode parentheses so they can't end the link target early.
-  return href ? `[${mdText(text)}](${href.replace(/\(/g, "%28").replace(/\)/g, "%29")})` : mdText(text);
+  if (!href || href.length > 1000) return mdText(text);
+  // Percent-encode ( ) so they can't end the link target early, and [ ] \
+  // so a fragment can't spell the Actions runner's legacy "##[command]".
+  const safe = href.replace(/[()[\]\\]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+  return `[${mdText(text)}](${safe})`;
 }
 
 /** Decodes the XML entities a feed title may contain (before mdText escapes it). */
@@ -79,12 +83,22 @@ function elementText(block, tag) {
   return decodeXmlEntities(block.slice(open + 1, close).replace(/<!\[CDATA\[|\]\]>/g, "").trim());
 }
 
+/** The entry's page link: rel="alternate" (or no rel), not e.g. rel="self". */
 function linkHref(block) {
-  const start = block.indexOf("<link");
-  const end = start < 0 ? -1 : block.indexOf(">", start);
-  if (end < 0 || end - start > 2048) return "";
-  const m = /\bhref="([^"]*)"/.exec(block.slice(start, end));
-  return m ? decodeXmlEntities(m[1]) : "";
+  let fallback = "";
+  let start = block.indexOf("<link");
+  // Bounded work per entry: at most 20 links, each tag at most 2 KB.
+  for (let seen = 0; start >= 0 && seen < 20; seen++, start = block.indexOf("<link", start + 5)) {
+    const end = block.slice(start, start + 2048).indexOf(">");
+    if (end < 0) continue;
+    const tag = block.slice(start, start + end);
+    const href = /\bhref="([^"]*)"/.exec(tag);
+    if (!href) continue;
+    const rel = /\brel="([^"]*)"/.exec(tag);
+    if (!rel || rel[1] === "alternate") return decodeXmlEntities(href[1]);
+    fallback ||= decodeXmlEntities(href[1]);
+  }
+  return fallback;
 }
 
 /**

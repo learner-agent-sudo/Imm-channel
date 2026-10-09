@@ -47,7 +47,11 @@ Only the current deployment of the default branch is supported.
 - **Content-Security-Policy on every page** (`scripts/csp.mjs`, applied at
   build time): only the site's own scripts — each inline one pinned by its
   hash — can run, and the page can't load from or send data to any other
-  website. The build fails if a page can't be fully covered.
+  origin. The build fails if a page has an inline style, an inline event
+  handler, or an inline script that isn't Next.js page data. Note that
+  GitHub Pages project sites share the `<owner>.github.io` origin, so the
+  site trusts the account's other Pages sites; the account must not host
+  untrusted Pages content.
 - **Untrusted feed data.** IRCC feed content is fetched only over https from
   canada.ca, size-capped, validated and bounded before it's committed or
   published (`scripts/ircc-draws.mjs`), and escaped before it's posted to

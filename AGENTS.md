@@ -48,8 +48,10 @@ Canadian immigration pathway planner. See README.md for architecture.
     `scripts/csp.mjs` (part of `npm run build`): hashed inline scripts only,
     `default-src 'none'`, `style-src 'self'`. Never add third-party scripts,
     fonts, analytics, iframes or remote images, inline `style=` attributes
-    in server-rendered markup, or `dangerouslySetInnerHTML` — the build fails
-    on inline styles, and the browser blocks the rest. Use Tailwind classes.
+    in server-rendered markup, `next/script`, or `dangerouslySetInnerHTML` —
+    the build fails on inline styles, handlers and non-Next inline scripts,
+    and the browser blocks the rest. Use Tailwind classes. Form fields in the
+    wizard keep `autoComplete="off"` (stops form-state restore on Back).
   - `<Link>`s whose target depends on the user's answers need
     `prefetch={false}`, or viewing the results makes answer-dependent requests.
   - Feed data is untrusted: validate it in `scripts/ircc-draws.mjs` and pass

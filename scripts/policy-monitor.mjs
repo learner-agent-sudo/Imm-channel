@@ -27,7 +27,9 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
   IRCC_ROUNDS_URL,
+  assertNoneMissing,
   assertNotOlder,
+  countSkippedNewer,
   normalizeRounds,
   serializeDrawsFile,
 } from "./ircc-draws.mjs";
@@ -95,14 +97,23 @@ async function fetchTextWithRetry(url, accept, maxBytes) {
   throw new Error(`${url} → ${lastError.message} (${RETRY_DELAYS_MS.length + 1} attempts)`);
 }
 
-async function checkDraws(state, report) {
+async function checkDraws(state, report, errors) {
   const raw = JSON.parse(
     await fetchTextWithRetry(IRCC_ROUNDS_URL, "application/json", MAX_ROUNDS_BYTES),
   );
   const rounds = normalizeRounds(raw);
   const current = readJson(DRAWS_PATH, { rounds: [] });
-  // Checked before anything is written, so a stale feed changes nothing.
+  // Checked before anything is written, so a stale or partly unreadable feed
+  // changes nothing.
   assertNotOlder(current.rounds, rounds);
+  assertNoneMissing(current.rounds, rounds);
+  const skipped = countSkippedNewer(raw, rounds[0].drawNumber);
+  if (skipped > 0) {
+    errors.push(
+      `${skipped} newer draw row(s) in the IRCC feed couldn't be read and were skipped — ` +
+        "check whether the feed's format changed",
+    );
+  }
   const lastDrawNumber = Math.max(state.lastDrawNumber, rounds[0].drawNumber);
 
   const fresh = rounds.filter((r) => r.drawNumber > state.lastDrawNumber);
@@ -195,7 +206,7 @@ const nextState = { ...state };
 let dataChanged = false;
 
 try {
-  const draws = await checkDraws(state, report);
+  const draws = await checkDraws(state, report, errors);
   nextState.lastDrawNumber = draws.lastDrawNumber;
   dataChanged = draws.dataChanged;
 } catch (err) {
@@ -211,7 +222,9 @@ const changed = report.length > 0;
 
 if (changed) {
   console.log("# IRCC policy monitor report\n");
-  console.log(report.join("\n"));
+  // GitHub rejects issue comments over 65,536 characters.
+  const body = report.join("\n");
+  console.log(body.length > 60000 ? `${body.slice(0, 60000)}\n\n_…report truncated._` : body);
 } else {
   console.log("No new IRCC draws or announcements since last check.");
 }
