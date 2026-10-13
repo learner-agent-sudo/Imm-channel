@@ -135,6 +135,10 @@ jobs:
       - name: Test
         run: npm test
 
+      # Also catches Dependabot updates that break linting.
+      - name: Lint
+        run: npm run lint
+
       - name: Build static site
         run: PAGES_BASE_PATH="/${GITHUB_REPOSITORY#*/}" npm run build
 

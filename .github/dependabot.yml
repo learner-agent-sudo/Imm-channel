@@ -11,10 +11,17 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
+    # Major versions (e.g. eslint 10, vitest 5) change APIs and need a
+    # hands-on migration, so they aren't proposed automatically. This also
+    # applies to security updates — a fix that needs a major upgrade has to
+    # be done by hand.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       npm-minor-and-patch:
         patterns: ["*"]
-        update-types: [minor, patch] # majors arrive as their own PRs
+        update-types: [minor, patch]
 
   - package-ecosystem: github-actions
     directory: /
