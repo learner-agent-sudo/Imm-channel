@@ -1,8 +1,9 @@
 {
-  "asOf": "2026-10-27",
+  "asOf": "2026-10-28",
   "officialSource": "https://www.canada.ca/content/dam/ircc/documents/json/ee_rounds_123_en.json",
   "note": "Written by scripts/policy-monitor.mjs --update from IRCC's official rounds feed (daily GitHub Action). Do not edit by hand.",
   "rounds": [
+    {"drawNumber":452,"date":"2026-10-27","stream":"French-Language proficiency 2026-Version 2","invitations":5000,"cutoff":407},
     {"drawNumber":451,"date":"2026-10-26","stream":"Provincial Nominee Program","invitations":792,"cutoff":761},
     {"drawNumber":450,"date":"2026-10-16","stream":"French-Language proficiency 2026-Version 2","invitations":5000,"cutoff":435},
     {"drawNumber":449,"date":"2026-10-15","stream":"Canadian Experience Class","invitations":2500,"cutoff":519},
@@ -41,7 +42,6 @@
     {"drawNumber":416,"date":"2026-05-25","stream":"Provincial Nominee Program","invitations":334,"cutoff":805},
     {"drawNumber":415,"date":"2026-05-11","stream":"Provincial Nominee Program","invitations":380,"cutoff":798},
     {"drawNumber":414,"date":"2026-04-29","stream":"French-Language proficiency 2026-Version 2","invitations":4000,"cutoff":400},
-    {"drawNumber":413,"date":"2026-04-28","stream":"Canadian Experience Class","invitations":2000,"cutoff":514},
-    {"drawNumber":412,"date":"2026-04-27","stream":"Provincial Nominee Program","invitations":473,"cutoff":795}
+    {"drawNumber":413,"date":"2026-04-28","stream":"Canadian Experience Class","invitations":2000,"cutoff":514}
   ]
 }
